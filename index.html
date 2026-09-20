@@ -1,0 +1,1565 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Spin to Win</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Archivo:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap">
+<style>
+  :root {
+    --ground:      #E9E7F0;
+    --surface:     #FCFBFE;
+    --surface-2:   #F2F0F8;
+    --ink:         #1A1726;
+    --ink-soft:    #5C5670;
+    --line:        #D5D1E2;
+    --brass:       #A9721B;
+    --brass-lit:   #D9A644;
+    --brass-dim:   #E4D3AE;
+    --shadow:      rgba(26, 23, 38, .16);
+    --shadow-deep: rgba(26, 23, 38, .24);
+    --rim-a:       #F0DCA8;
+    --rim-b:       #A9721B;
+    --rim-c:       #6E4910;
+    --hub-face:    #FBF8F1;
+
+    --display: "Alfa Slab One", "Rockwell", Georgia, serif;
+    --ui: "Archivo", "Helvetica Neue", Arial, sans-serif;
+    --mono: "Space Mono", "SFMono-Regular", Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #131120;
+      --surface:     #1D1A2B;
+      --surface-2:   #262235;
+      --ink:         #EFECF7;
+      --ink-soft:    #9C95B0;
+      --line:        #353047;
+      --brass:       #E4AC4E;
+      --brass-lit:   #F5D590;
+      --brass-dim:   #6B4E1C;
+      --shadow:      rgba(0, 0, 0, .45);
+      --shadow-deep: rgba(0, 0, 0, .6);
+      --rim-a:       #F5D590;
+      --rim-b:       #B07E23;
+      --rim-c:       #503309;
+      --hub-face:    #2B2539;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:      #131120;
+    --surface:     #1D1A2B;
+    --surface-2:   #262235;
+    --ink:         #EFECF7;
+    --ink-soft:    #9C95B0;
+    --line:        #353047;
+    --brass:       #E4AC4E;
+    --brass-lit:   #F5D590;
+    --brass-dim:   #6B4E1C;
+    --shadow:      rgba(0, 0, 0, .45);
+    --shadow-deep: rgba(0, 0, 0, .6);
+    --rim-a:       #F5D590;
+    --rim-b:       #B07E23;
+    --rim-c:       #503309;
+    --hub-face:    #2B2539;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font: 400 15px/1.55 var(--ui);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: clamp(1080px, calc(100vh + 480px), 2400px);
+    max-width: clamp(1080px, calc(100dvh + 480px), 2400px);
+    margin: 0 auto;
+    padding-inline: 20px;
+    padding-block: 26px 30px;
+  }
+
+  /* ---------- masthead ---------- */
+
+  .masthead {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 18px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid var(--brass);
+    margin-bottom: 28px;
+  }
+
+  .wordmark {
+    font: 400 clamp(1.75rem, 5vw, 2.4rem)/1 var(--display);
+    margin: 0;
+    letter-spacing: -.015em;
+    text-wrap: balance;
+  }
+  .wordmark em {
+    font-style: normal;
+    color: var(--brass);
+  }
+
+  .tagline {
+    margin: 0;
+    color: var(--ink-soft);
+    font-size: .95rem;
+    max-width: 44ch;
+  }
+
+  .panel-toggle {
+    margin-left: auto;
+    align-self: center;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    padding: 9px 13px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    background: var(--surface);
+    color: var(--ink-soft);
+    font: 400 11px/1 var(--mono);
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color .15s ease, border-color .15s ease;
+  }
+  .panel-toggle:hover { color: var(--brass); border-color: var(--brass); }
+  .panel-toggle:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+  .panel-toggle svg {
+    width: 13px;
+    height: 13px;
+    flex: none;
+    transition: transform .2s ease;
+  }
+  .panel-toggle[aria-expanded="false"] svg { transform: rotate(180deg); }
+
+  /* ---------- layout ---------- */
+
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 36px;
+    align-items: start;
+  }
+
+  @media (max-width: 880px) {
+    .layout { grid-template-columns: 1fr; gap: 30px; }
+  }
+
+  .layout.is-collapsed { grid-template-columns: 1fr; }
+  .layout.is-collapsed .panel { display: none; }
+
+  @media (min-width: 881px) {
+    .layout.is-collapsed .stage {
+      --wheel-w: max(260px, min(100% - 348px, calc(100vh - 170px)));
+      --wheel-w: max(260px, min(100% - 348px, calc(100dvh - 170px)));
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+    }
+    .layout.is-collapsed .verdict {
+      width: 320px;
+      flex: 0 0 320px;
+    }
+  }
+
+  /* ---------- stage ---------- */
+
+  .stage {
+    --wheel-w: max(260px, min(100%, calc(100vh - 340px)));
+    --wheel-w: max(260px, min(100%, calc(100dvh - 340px)));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .wheel-wrap {
+    position: relative;
+    width: var(--wheel-w);
+    aspect-ratio: 1;
+    container-type: inline-size;
+  }
+
+  .wheel-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    filter: drop-shadow(0 10px 22px var(--shadow));
+    will-change: transform;
+  }
+
+  .spin-target {
+    position: absolute;
+    inset: 0;
+    border: 0;
+    padding: 0;
+    border-radius: 50%;
+    background: transparent;
+    cursor: pointer;
+    z-index: 3;
+  }
+  .spin-target:focus-visible {
+    outline: 3px solid var(--brass);
+    outline-offset: 5px;
+  }
+  .spin-target[disabled] { cursor: default; }
+
+  .hub {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 23%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 34% 28%, var(--rim-a), var(--rim-b) 62%, var(--rim-c) 100%);
+    box-shadow:
+      0 0 0 3px var(--hub-face),
+      0 4px 12px var(--shadow-deep),
+      inset 0 -3px 6px rgba(0, 0, 0, .3);
+    display: grid;
+    place-items: center;
+    z-index: 2;
+    pointer-events: none;
+    transition: transform .18s ease;
+  }
+  .spin-target:hover + .hub { transform: translate(-50%, -50%) scale(1.06); }
+  .spin-target[disabled] + .hub { transform: translate(-50%, -50%) scale(.95); }
+
+  .hub span {
+    font: 700 clamp(9px, 4cqw, 20px)/1 var(--mono);
+    letter-spacing: .14em;
+    color: #2E1D04;
+    text-transform: uppercase;
+  }
+
+  .pointer {
+    position: absolute;
+    left: 50%;
+    top: -2.2%;
+    width: 12%;
+    margin-left: -6%;
+    transform-origin: 50% 14%;
+    z-index: 4;
+    pointer-events: none;
+    filter: drop-shadow(0 3px 5px var(--shadow-deep));
+  }
+  .pointer svg { display: block; width: 100%; height: auto; }
+
+  /* ---------- verdict ---------- */
+
+  .verdict {
+    width: var(--wheel-w);
+    min-height: 152px;
+    border: 1px solid var(--line);
+    border-top: 3px solid var(--brass);
+    border-radius: 3px;
+    background: var(--surface);
+    box-shadow: 0 2px 10px var(--shadow);
+    padding: 16px 20px 18px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    text-align: center;
+  }
+
+  .verdict-label {
+    font: 400 10px/1 var(--mono);
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  .verdict-name {
+    font: 400 clamp(1.4rem, 4.6vw, 2rem)/1.15 var(--display);
+    margin: 0;
+    color: var(--ink);
+    overflow-wrap: anywhere;
+    text-wrap: balance;
+    min-height: calc(clamp(1.4rem, 4.6vw, 2rem) * 1.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .verdict-name.is-idle {
+    font-family: var(--ui);
+    font-weight: 500;
+    font-size: 1rem;
+    color: var(--ink-soft);
+  }
+  .verdict.is-won .verdict-name { animation: pop .42s cubic-bezier(.2, 1.5, .4, 1); }
+
+  @keyframes pop {
+    from { transform: scale(.82); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+  }
+
+  .verdict-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+  }
+
+  .verdict-actions.is-idle { visibility: hidden; }
+
+  .odds {
+    font: 400 11px/1.4 var(--mono);
+    color: var(--ink-soft);
+    letter-spacing: .02em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- panel ---------- */
+
+  .panel {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .field-head {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+    font: 400 10px/1 var(--mono);
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .field-meta {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .field-meta b {
+    font-weight: 700;
+    color: var(--brass);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: .08em;
+  }
+
+  .info-btn {
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    flex: none;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    background: var(--surface);
+    color: var(--ink-soft);
+    cursor: pointer;
+    transition: color .15s ease, border-color .15s ease;
+  }
+  .info-btn:hover,
+  .info-btn[aria-expanded="true"] { color: var(--brass); border-color: var(--brass); }
+  .info-btn:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+  .info-btn svg { display: block; width: 13px; height: 13px; }
+
+  .help-pop {
+    position: absolute;
+    top: calc(100% + 9px);
+    right: 0;
+    z-index: 5;
+    width: min(330px, 100%);
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    border-top: 3px solid var(--brass);
+    border-radius: 3px;
+    background: var(--surface);
+    box-shadow: 0 10px 28px var(--shadow-deep);
+    font: 400 13px/1.6 var(--ui);
+    letter-spacing: normal;
+    text-transform: none;
+    color: var(--ink-soft);
+  }
+  .help-pop[hidden] { display: none; }
+  .help-pop p { margin: 0 0 9px; }
+  .help-pop p:last-child { margin-bottom: 0; }
+
+  .entries {
+    width: 100%;
+    min-height: 210px;
+    resize: vertical;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    background: var(--surface);
+    color: var(--ink);
+    font: 400 13px/1.85 var(--mono);
+    box-shadow: inset 0 1px 3px var(--shadow);
+  }
+  .entries:focus-visible {
+    outline: 2px solid var(--brass);
+    outline-offset: 1px;
+    border-color: var(--brass);
+  }
+
+  .hint {
+    margin: 8px 0 0;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+  }
+
+  .hint code,
+  .help-pop code {
+    font: 400 12px/1.5 var(--mono);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    padding: 1px 4px;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  button.act {
+    font: 500 13px/1 var(--ui);
+    padding: 9px 14px;
+    border-radius: 3px;
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    color: var(--ink);
+    cursor: pointer;
+    transition: background .15s ease, border-color .15s ease, transform .1s ease;
+  }
+  button.act:hover { background: var(--surface); border-color: var(--brass); }
+  button.act:active { transform: translateY(1px); }
+  button.act:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+  button.act[disabled] { opacity: .45; cursor: default; }
+  button.act[disabled]:hover { background: var(--surface-2); border-color: var(--line); }
+
+  button.act.primary {
+    background: var(--brass);
+    border-color: var(--brass);
+    color: #231703;
+    font-weight: 600;
+  }
+  button.act.primary:hover { background: var(--brass-lit); border-color: var(--brass-lit); }
+
+  .history-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 7px;
+    margin-bottom: 4px;
+  }
+  .history-head h2 {
+    font: 400 10px/1 var(--mono);
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0;
+  }
+  .link-btn {
+    background: none;
+    border: 0;
+    padding: 2px 0;
+    font: 400 11px/1 var(--mono);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .link-btn:hover { color: var(--brass); }
+  .link-btn:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+
+  .history {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    max-height: 210px;
+    overflow-y: auto;
+  }
+  .history li {
+    display: grid;
+    grid-template-columns: 2.6em 1fr;
+    gap: 10px;
+    align-items: baseline;
+    padding: 7px 2px;
+    border-bottom: 1px dotted var(--line);
+    font-size: 14px;
+  }
+  .history li:last-child { border-bottom: 0; }
+  .history .n {
+    font: 400 11px/1.5 var(--mono);
+    color: var(--brass);
+    font-variant-numeric: tabular-nums;
+  }
+  .history .who { overflow-wrap: anywhere; }
+  .history-empty {
+    margin: 10px 0 0;
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+
+  .toggle {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    cursor: pointer;
+  }
+  .toggle input { accent-color: var(--brass); width: 15px; height: 15px; cursor: pointer; }
+
+  .sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .verdict.is-won .verdict-name { animation: none; }
+    .hub, button.act { transition: none; }
+  }
+</style>
+
+<div class="page">
+  <header class="masthead">
+    <h1 class="wordmark">Spin to <em>Win</em></h1>
+    <p class="tagline">Type a list, give the wheel a shove, let the flapper decide.</p>
+    <button class="panel-toggle" id="panelToggle" type="button" aria-expanded="true" aria-controls="panel">
+      <svg viewBox="0 0 16 16" aria-hidden="true">
+        <path d="M6 3 L11 8 L6 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+      <span id="panelToggleLabel">Hide list</span>
+    </button>
+  </header>
+
+  <div class="layout" id="layout">
+    <section class="stage">
+      <div class="wheel-wrap" id="wheelWrap">
+        <canvas class="wheel-canvas" id="wheel"></canvas>
+        <button class="spin-target" id="spinTarget" aria-label="Spin the wheel"></button>
+        <div class="hub" aria-hidden="true"><span>Spin</span></div>
+        <div class="pointer" id="pointer" aria-hidden="true">
+          <svg viewBox="0 0 46 56" role="presentation">
+            <defs>
+              <linearGradient id="brassGrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#F6E3B4"></stop>
+                <stop offset="45%" stop-color="#D9A644"></stop>
+                <stop offset="100%" stop-color="#8A5C11"></stop>
+              </linearGradient>
+            </defs>
+            <path d="M23 54 L7 20 Q23 5 39 20 Z" fill="url(#brassGrad)" stroke="#5B3B08" stroke-width="2.4" stroke-linejoin="round"></path>
+            <circle cx="23" cy="18" r="4.4" fill="#5B3B08"></circle>
+            <circle cx="21.4" cy="16.6" r="1.5" fill="#F6E3B4"></circle>
+          </svg>
+        </div>
+      </div>
+
+      <div class="verdict" id="verdict">
+        <span class="verdict-label" id="verdictLabel">Ready</span>
+        <p class="verdict-name is-idle" id="verdictName" aria-live="polite">Tap the wheel or hit Spin to pick a winner.</p>
+        <div class="verdict-actions is-idle" id="verdictActions">
+          <button class="act primary" id="againBtn" type="button">Spin again</button>
+          <button class="act" id="removeBtn" type="button">Remove from list</button>
+        </div>
+        <p class="odds" id="odds"></p>
+      </div>
+    </section>
+
+    <aside class="panel" id="panel">
+      <div>
+        <div class="field-head">
+          <label for="entries">Entries — one per line</label>
+          <span class="field-meta">
+            <b id="count">8 slices</b>
+            <button class="info-btn" id="weightHelpBtn" type="button"
+                    aria-expanded="false" aria-controls="weightHelp"
+                    aria-label="How entry weights work">
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <circle cx="8" cy="4.2" r="1.15" fill="currentColor"></circle>
+                <path d="M8 7.2 V12.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+              </svg>
+            </button>
+          </span>
+          <div class="help-pop" id="weightHelp" hidden>
+            <p>Adjust the weight of an entry by prefixing its line with a number followed by <code>#</code>.</p>
+            <p><i>e.g.</i> <code>2#Blue</code> to double the weight.</p>
+            <p>Decimals can also be used: <code>0.5#Green</code>.</p>
+            <p>Zero weight items, like <code>0#Maybe</code>, are omitted from the wheel.</p>
+          </div>
+        </div>
+        <textarea class="entries" id="entries" spellcheck="false" aria-describedby="entriesHint"></textarea>
+        <p class="hint" id="entriesHint">Sample list loaded — replace it with your own names.</p>
+        <div class="row">
+          <button class="act primary" id="spinBtn" type="button">Spin the wheel</button>
+          <button class="act" id="clearBtn" type="button">Clear</button>
+          <button class="act" id="copyBtn" type="button">Copy link</button>
+        </div>
+        <div class="row">
+          <label class="toggle" for="soundToggle">
+            <input type="checkbox" id="soundToggle" checked>
+            Peg clicks &amp; winner chime
+          </label>
+        </div>
+      </div>
+
+      <div>
+        <div class="history-head">
+          <h2>Results log</h2>
+          <button class="link-btn" id="clearHistory" type="button" hidden>Clear</button>
+        </div>
+        <ul class="history" id="history"></ul>
+        <p class="history-empty" id="historyEmpty">No spins yet.</p>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var TAU = Math.PI * 2;
+
+  var PALETTE = [
+    "#C4382C", "#2E7D74", "#B06C18", "#4C4A96", "#4E8442",
+    "#A32F63", "#2A6A9E", "#8C5220", "#6E3D96", "#77761F"
+  ];
+
+  var SAMPLE = ["Apples", "Oranges", "2#Bananas", "0.5#Pears"];
+  var STORE_KEY = "spin-to-win/v1";
+  var MAX_ENTRIES = 300;
+
+  var canvas = document.getElementById("wheel");
+  var ctx = canvas.getContext("2d");
+  var wrap = document.getElementById("wheelWrap");
+  var pointerEl = document.getElementById("pointer");
+  var spinTarget = document.getElementById("spinTarget");
+  var entriesEl = document.getElementById("entries");
+  var sampleHint = document.getElementById("entriesHint");
+  var countEl = document.getElementById("count");
+  var oddsEl = document.getElementById("odds");
+  var verdictEl = document.getElementById("verdict");
+  var verdictLabel = document.getElementById("verdictLabel");
+  var verdictName = document.getElementById("verdictName");
+  var verdictActions = document.getElementById("verdictActions");
+  var spinBtn = document.getElementById("spinBtn");
+  var againBtn = document.getElementById("againBtn");
+  var removeBtn = document.getElementById("removeBtn");
+  var clearBtn = document.getElementById("clearBtn");
+  var soundToggle = document.getElementById("soundToggle");
+  var historyEl = document.getElementById("history");
+  var historyEmpty = document.getElementById("historyEmpty");
+  var clearHistoryBtn = document.getElementById("clearHistory");
+  var layoutEl = document.getElementById("layout");
+  var pageEl = document.querySelector(".page");
+  var mastheadEl = document.querySelector(".masthead");
+  var stageEl = document.querySelector(".stage");
+  var panelToggle = document.getElementById("panelToggle");
+  var panelToggleLabel = document.getElementById("panelToggleLabel");
+
+  var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+  var entries = [];
+  var history = [];
+  var theta = 0;
+  var flap = 0;
+  var spinning = false;
+  var winnerIdx = -1;
+  var size = 0;
+  var panelOpen = true;
+  var totalWeight = 0;
+  var bounds = [0];
+  var idleOdds = "";
+  var fromUrl = false;
+  var storedText = "";
+
+  /* ---------- storage ---------- */
+
+  /* ---------- link payload ----------
+     Copy link emits ?w=<base64url>, so the wheel isn't legible in the
+     address bar before anyone opens it. The bytes are a format flag
+     (0 raw UTF-8, 1 LZW) followed by the list text, LZW'd whenever that
+     comes out smaller. */
+
+  var B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+  var B64REV = (function () {
+    var m = {};
+    for (var i = 0; i < 64; i++) m[B64.charAt(i)] = i;
+    return m;
+  })();
+  var MAXCODE = 32768;
+  var hasCodec = typeof TextEncoder === "function" && typeof TextDecoder === "function";
+
+  function bytesToB64(bytes) {
+    var out = "", i = 0, n;
+    for (; i + 2 < bytes.length; i += 3) {
+      n = (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2];
+      out += B64.charAt((n >> 18) & 63) + B64.charAt((n >> 12) & 63) +
+             B64.charAt((n >> 6) & 63) + B64.charAt(n & 63);
+    }
+    var rem = bytes.length - i;
+    if (rem === 1) {
+      n = bytes[i] << 16;
+      out += B64.charAt((n >> 18) & 63) + B64.charAt((n >> 12) & 63);
+    } else if (rem === 2) {
+      n = (bytes[i] << 16) | (bytes[i + 1] << 8);
+      out += B64.charAt((n >> 18) & 63) + B64.charAt((n >> 12) & 63) + B64.charAt((n >> 6) & 63);
+    }
+    return out;
+  }
+
+  function b64ToBytes(str) {
+    var out = [], acc = 0, bits = 0;
+    for (var i = 0; i < str.length; i++) {
+      var v = B64REV[str.charAt(i)];
+      if (v === undefined) return null;
+      acc = (acc << 6) | v;
+      bits += 6;
+      if (bits >= 8) { bits -= 8; out.push((acc >>> bits) & 0xFF); }
+    }
+    return Uint8Array.from(out);
+  }
+
+  /* LZW with variable-width codes, 9 bits up to 15. */
+  function lzwEncode(bytes) {
+    if (!bytes.length) return new Uint8Array(0);
+    var dict = {}, width = 9, next = 256;
+    var out = [], acc = 0, bits = 0;
+    function emit(code) {
+      acc = (acc << width) | code;
+      bits += width;
+      while (bits >= 8) { bits -= 8; out.push((acc >>> bits) & 0xFF); }
+      acc &= (1 << bits) - 1;
+    }
+    var w = String.fromCharCode(bytes[0]);
+    for (var i = 1; i < bytes.length; i++) {
+      var c = String.fromCharCode(bytes[i]);
+      var wc = w + c;
+      if (dict[wc] !== undefined) { w = wc; continue; }
+      emit(w.length === 1 ? w.charCodeAt(0) : dict[w]);
+      if (next < MAXCODE) {
+        dict[wc] = next++;
+        if (next === (1 << width) && width < 15) width++;
+      }
+      w = c;
+    }
+    emit(w.length === 1 ? w.charCodeAt(0) : dict[w]);
+    if (bits) out.push((acc << (8 - bits)) & 0xFF);
+    return Uint8Array.from(out);
+  }
+
+  function lzwDecode(bytes) {
+    if (!bytes.length) return new Uint8Array(0);
+    var dict = new Array(256), i;
+    for (i = 0; i < 256; i++) dict[i] = String.fromCharCode(i);
+    var width = 9, acc = 0, bits = 0, pos = 0;
+    function read() {
+      while (bits < width) {
+        if (pos >= bytes.length) return -1;
+        acc = (acc << 8) | bytes[pos++];
+        bits += 8;
+      }
+      bits -= width;
+      var c = (acc >>> bits) & ((1 << width) - 1);
+      acc &= (1 << bits) - 1;
+      return c;
+    }
+    var code = read();
+    if (code < 0 || code >= dict.length) return null;
+    var prev = dict[code], res = [prev];
+    for (;;) {
+      code = read();
+      if (code < 0) break;
+      var entry;
+      if (code < dict.length) entry = dict[code];
+      else if (code === dict.length) entry = prev + prev.charAt(0);
+      else return null;
+      res.push(entry);
+      if (dict.length < MAXCODE) {
+        dict.push(prev + entry.charAt(0));
+        if (dict.length + 1 === (1 << width) && width < 15) width++;
+      }
+      prev = entry;
+    }
+    var s = res.join(""), outb = new Uint8Array(s.length);
+    for (i = 0; i < s.length; i++) outb[i] = s.charCodeAt(i) & 0xFF;
+    return outb;
+  }
+
+  function packList(text) {
+    var bytes = new TextEncoder().encode(text);
+    var lzw = lzwEncode(bytes);
+    var useLzw = lzw.length > 0 && lzw.length < bytes.length;
+    var body = useLzw ? lzw : bytes;
+    var buf = new Uint8Array(body.length + 1);
+    buf[0] = useLzw ? 1 : 0;
+    buf.set(body, 1);
+    return bytesToB64(buf);
+  }
+
+  function unpackList(str) {
+    if (!hasCodec) return null;
+    var buf = b64ToBytes(str);
+    if (!buf || buf.length < 2) return null;
+    var body = buf.subarray(1);
+    var bytes = buf[0] === 1 ? lzwDecode(body) : buf[0] === 0 ? body : null;
+    if (!bytes) return null;
+    /* fatal, so a mangled link falls through to the saved list rather
+       than filling the wheel with replacement characters. */
+    try { return new TextDecoder("utf-8", { fatal: true }).decode(bytes); }
+    catch (e) { return null; }
+  }
+
+  /* ---------- shareable links ----------
+     ?w=<base64url>                — what Copy link writes
+     ?list=Red%0AGreen%0A2%23Blue  — readable form, newline or comma
+                                     separated, still accepted
+     ?e=Red&e=Green                — one parameter per entry, for labels
+                                     that contain a comma */
+
+  function queryString() {
+    var s = location.search.replace(/^\?/, "");
+    var h = location.hash.replace(/^#/, "");
+    if (!h) return s;
+    /* A hand-typed "2#Blue" puts everything from the # into the fragment.
+       Stitch it back on so unencoded links still work. */
+    return s ? s + "#" + h : h;
+  }
+
+  function listFromUrl() {
+    var params;
+    try { params = new URLSearchParams(queryString()); } catch (e) { return null; }
+    var parts, packed = params.get("w");
+    if (packed) {
+      var text = unpackList(packed.trim());
+      if (text === null) return null;
+      return trimAll(text.split(/[\r\n]+/));
+    }
+    var raw = params.get("list");
+    if (raw === null) raw = params.get("entries");
+    if (raw !== null) {
+      parts = /[\r\n]/.test(raw) ? raw.split(/[\r\n]+/) : raw.split(",");
+    } else {
+      parts = params.getAll("e");
+      if (!parts.length) return null;
+    }
+    return trimAll(parts);
+  }
+
+  function trimAll(parts) {
+    var out = [];
+    for (var i = 0; i < parts.length; i++) {
+      var s = parts[i].trim();
+      if (s) out.push(s);
+    }
+    return out.length ? out : null;
+  }
+
+  function shareUrl() {
+    var base = location.href.split(/[?#]/)[0];
+    var lines = rawLines();
+    if (!lines.length) return base;
+    var text = lines.join("\n");
+    if (hasCodec) return base + "?w=" + packList(text);
+    /* No TextEncoder: fall back to the readable form rather than no link. */
+    return base + "?list=" + encodeURIComponent(text);
+  }
+
+  /* ---------- storage ---------- */
+
+  function load() {
+    var saved = null;
+    try { saved = JSON.parse(localStorage.getItem(STORE_KEY) || "null"); } catch (e) { saved = null; }
+    if (saved && typeof saved.text === "string") storedText = saved.text;
+    else if (saved && Array.isArray(saved.entries)) storedText = saved.entries.join("\n");
+
+    var shared = listFromUrl();
+    if (shared) {
+      /* A link wins over the saved list, but doesn't overwrite it until
+         the visitor edits something — so an opened link is not a way to
+         lose the list you had. */
+      entriesEl.value = shared.join("\n");
+      fromUrl = true;
+      sampleHint.textContent = "List loaded from the link. Editing it makes it yours.";
+    } else if (storedText && storedText.trim()) {
+      entriesEl.value = storedText;
+      sampleHint.hidden = true;
+    } else {
+      entriesEl.value = SAMPLE.join("\n");
+    }
+    if (saved && Array.isArray(saved.history)) history = saved.history.slice(0, 40);
+    if (saved && typeof saved.sound === "boolean") soundToggle.checked = saved.sound;
+    if (saved && typeof saved.panel === "boolean") panelOpen = saved.panel;
+  }
+
+  function save() {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify({
+        text: fromUrl ? storedText : entriesEl.value,
+        history: history,
+        sound: soundToggle.checked,
+        panel: panelOpen
+      }));
+    } catch (e) { /* ignore and continue, page works without storage */ }
+  }
+
+  function claimList() {
+    if (!fromUrl) return;
+    fromUrl = false;
+    sampleHint.hidden = true;
+  }
+
+  /* ---------- entries ---------- */
+
+  /* "2#Blue" or "1.5#Blue" — a leading number and # set the entry's weight.
+     Anything else is a plain entry weighing 1. */
+  var WEIGHT_RE = /^(\d*\.?\d+)\s*#\s*(.+)$/;
+
+  function readEntries() {
+    var lines = entriesEl.value.split("\n");
+    var out = [];
+    for (var i = 0; i < lines.length && out.length < MAX_ENTRIES; i++) {
+      var s = lines[i].trim();
+      if (!s) continue;
+      var m = WEIGHT_RE.exec(s);
+      var weight = m ? parseFloat(m[1]) : 1;
+      /* A zero weight is a slice nobody can land on — leave it off the wheel. */
+      if (!(weight > 0)) continue;
+      out.push({ label: m ? m[2].trim() : s, weight: weight, line: i });
+    }
+    return out;
+  }
+
+  function rawLines() {
+    var lines = entriesEl.value.split("\n");
+    var out = [];
+    for (var i = 0; i < lines.length; i++) {
+      var s = lines[i].trim();
+      if (s) out.push(s);
+    }
+    return out;
+  }
+
+  function computeBounds() {
+    var n = entries.length, i;
+    totalWeight = 0;
+    for (i = 0; i < n; i++) totalWeight += entries[i].weight;
+    bounds = [0];
+    var acc = 0;
+    for (i = 0; i < n; i++) {
+      acc += entries[i].weight;
+      bounds.push((acc / totalWeight) * TAU);
+    }
+    if (n) bounds[n] = TAU;
+  }
+
+  function sliceAt(rot) {
+    var n = entries.length;
+    if (!n) return -1;
+    var a = ((-rot) % TAU + TAU) % TAU;
+    var lo = 0, hi = n - 1;
+    while (lo < hi) {
+      var mid = (lo + hi + 1) >> 1;
+      if (bounds[mid] <= a) lo = mid; else hi = mid - 1;
+    }
+    return lo;
+  }
+
+  function trimNum(v) {
+    return String(Math.round(v * 1000) / 1000);
+  }
+
+  function colorFor(i, n) {
+    var c = i % PALETTE.length;
+    if (n > 2 && i === n - 1 && c === 0) c = 5;
+    return PALETTE[c];
+  }
+
+  function syncEntries(redraw) {
+    entries = readEntries();
+    computeBounds();
+    var n = entries.length, weighted = false;
+    for (var i = 0; i < n; i++) {
+      if (entries[i].weight !== 1) { weighted = true; break; }
+    }
+    countEl.textContent = n === 1 ? "1 slice" : n + " slices";
+    idleOdds = !n ? ""
+      : weighted
+        ? n + (n === 1 ? " slice" : " slices") + " · " + trimNum(totalWeight) + " total weight"
+        : (360 / n).toFixed(1) + "° per slice · 1 in " + n + " odds";
+    if (winnerIdx < 0) oddsEl.textContent = idleOdds;
+    spinBtn.disabled = n < 1;
+    spinTarget.disabled = n < 1;
+    if (redraw !== false) draw();
+    save();
+  }
+
+  function resetVerdict() {
+    winnerIdx = -1;
+    verdictEl.classList.remove("is-won");
+    verdictLabel.textContent = "Ready";
+    verdictName.className = "verdict-name is-idle";
+    verdictName.textContent = entries.length
+      ? "Tap the wheel to pick a winner."
+      : "Add a few entries to build the wheel.";
+    verdictActions.classList.add("is-idle");
+    oddsEl.textContent = idleOdds;
+    fitWheel();
+  }
+
+  /* ---------- drawing ---------- */
+
+  /* ---------- label fitting ---------- */
+
+  var MEASURE_PX = 100;
+  var LINE_EM = 1.14;
+  var SAFETY = 0.9;
+
+  function unitWidth(s) {
+    return ctx.measureText(s).width / MEASURE_PX;
+  }
+
+  function sizeForLines(lines, seg, outerR, maxW, maxSize) {
+    var uMax = 0;
+    for (var i = 0; i < lines.length; i++) {
+      var u = unitWidth(lines[i]);
+      if (u > uMax) uMax = u;
+    }
+    if (uMax <= 0) return 0;
+    var hEm = lines.length === 1 ? 1 : lines.length * LINE_EM;
+    var byHeight = (seg * outerR * SAFETY) / (hEm + seg * uMax);
+    var byWidth = maxW / uMax;
+    return Math.min(byHeight, byWidth, maxSize);
+  }
+
+  function splitInto(words, n) {
+    if (words.length < n) return null;
+    if (n === 1) return [words.join(" ")];
+    var best = null, bestW = Infinity, i, j;
+    if (n === 2) {
+      for (i = 1; i < words.length; i++) {
+        var a = words.slice(0, i).join(" "), b = words.slice(i).join(" ");
+        var w = Math.max(unitWidth(a), unitWidth(b));
+        if (w < bestW) { bestW = w; best = [a, b]; }
+      }
+      return best;
+    }
+    for (i = 1; i < words.length - 1; i++) {
+      for (j = i + 1; j < words.length; j++) {
+        var p = words.slice(0, i).join(" ");
+        var q = words.slice(i, j).join(" ");
+        var r = words.slice(j).join(" ");
+        var m = Math.max(unitWidth(p), unitWidth(q), unitWidth(r));
+        if (m < bestW) { bestW = m; best = [p, q, r]; }
+      }
+    }
+    return best;
+  }
+
+  function layoutLabel(text, seg, outerR, maxW, maxSize) {
+    var words = text.split(/\s+/).filter(Boolean);
+    var best = { lines: [text], size: sizeForLines([text], seg, outerR, maxW, maxSize) };
+    var maxLines = words.length > 10 ? 2 : 3;
+    for (var n = 2; n <= maxLines; n++) {
+      var lines = splitInto(words, n);
+      if (!lines) break;
+      var s = sizeForLines(lines, seg, outerR, maxW, maxSize);
+      /* Only spend an extra line if it buys a meaningfully bigger face. */
+      if (s > best.size * 1.08) best = { lines: lines, size: s };
+    }
+    return best;
+  }
+
+  function fitWheel() {
+    var st = getComputedStyle(stageEl);
+    var pg = getComputedStyle(pageEl);
+    var root = getComputedStyle(document.documentElement);
+    var isRow = st.flexDirection === "row";
+
+    var chrome =
+      parseFloat(root.paddingTop) + parseFloat(root.paddingBottom) +
+      parseFloat(pg.paddingTop) + parseFloat(pg.paddingBottom) +
+      mastheadEl.offsetHeight + parseFloat(getComputedStyle(mastheadEl).marginBottom);
+
+    var h = window.innerHeight - chrome - 6;
+    var w = stageEl.clientWidth;
+    if (isRow) w -= verdictEl.offsetWidth + (parseFloat(st.columnGap) || 28);
+    else h -= verdictEl.offsetHeight + (parseFloat(st.rowGap) || 20);
+
+    var px = Math.max(260, Math.min(w, h));
+    var cur = parseFloat(stageEl.style.getPropertyValue("--wheel-w")) || 0;
+    if (Math.abs(px - cur) > 1) {
+      stageEl.style.setProperty("--wheel-w", px.toFixed(1) + "px");
+    }
+  }
+
+  function resize() {
+    var w = Math.round(wrap.clientWidth);
+    if (!w) return;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    size = w;
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(w * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    draw();
+  }
+
+  function draw() {
+    if (!size) return;
+    var n = entries.length;
+    var cx = size / 2, cy = size / 2;
+    var rim = Math.max(8, size * 0.042);
+    var R = size / 2 - rim - 2;
+    var hubR = size * 0.115;
+    var css = getComputedStyle(document.documentElement);
+    var rimA = css.getPropertyValue("--rim-a").trim() || "#F0DCA8";
+    var rimB = css.getPropertyValue("--rim-b").trim() || "#A9721B";
+    var rimC = css.getPropertyValue("--rim-c").trim() || "#6E4910";
+
+    ctx.clearRect(0, 0, size, size);
+
+    /* Rim: a brass band carrying one peg per slice boundary. */
+    var band = ctx.createLinearGradient(0, 0, size, size);
+    band.addColorStop(0, rimA);
+    band.addColorStop(0.42, rimB);
+    band.addColorStop(1, rimC);
+    ctx.beginPath();
+    ctx.arc(cx, cy, R + rim / 2, 0, TAU);
+    ctx.lineWidth = rim;
+    ctx.strokeStyle = band;
+    ctx.stroke();
+
+    if (!n) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, R, 0, TAU);
+      ctx.fillStyle = css.getPropertyValue("--surface-2").trim() || "#F2F0F8";
+      ctx.fill();
+      ctx.setLineDash([7, 8]);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = css.getPropertyValue("--line").trim() || "#D5D1E2";
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = css.getPropertyValue("--ink-soft").trim() || "#5C5670";
+      ctx.font = "500 " + Math.max(12, size * 0.036) + "px Archivo, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("Empty wheel", cx, cy - size * 0.075);
+      return;
+    }
+
+    for (var i = 0; i < n; i++) {
+      var a0 = bounds[i] - Math.PI / 2;
+      var a1 = bounds[i + 1] - Math.PI / 2;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, R, a0, a1);
+      ctx.closePath();
+      ctx.fillStyle = colorFor(i, n);
+      ctx.fill();
+      if (n <= 60) {
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = "rgba(0,0,0,.18)";
+        ctx.stroke();
+      }
+    }
+
+    /* The winning slice gets lifted rather than announced twice. */
+    if (winnerIdx >= 0 && winnerIdx < n) {
+      var w0 = bounds[winnerIdx] - Math.PI / 2;
+      var w1 = bounds[winnerIdx + 1] - Math.PI / 2;
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, R, w0, w1);
+      ctx.closePath();
+      ctx.fillStyle = "rgba(255,255,255,.26)";
+      ctx.fill();
+      ctx.lineWidth = Math.max(2, size * 0.008);
+      ctx.strokeStyle = "rgba(255,255,255,.9)";
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    var outerR = R - size * 0.035;
+    var innerR = hubR + size * 0.025;
+    var maxW = outerR - innerR;
+    var maxSize = size * 0.055;
+
+    ctx.font = "600 " + MEASURE_PX + "px Archivo, sans-serif";
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#FFFFFF";
+    for (var j = 0; j < n; j++) {
+      var lay = layoutLabel(entries[j].label, bounds[j + 1] - bounds[j], outerR, maxW, maxSize);
+      if (!(lay.size > 0.5)) continue;
+      ctx.save();
+      ctx.rotate((bounds[j] + bounds[j + 1]) / 2 - Math.PI / 2);
+      ctx.font = "600 " + lay.size.toFixed(2) + "px Archivo, sans-serif";
+      ctx.shadowColor = "rgba(0,0,0,.42)";
+      ctx.shadowBlur = Math.max(2, lay.size * 0.16);
+      ctx.shadowOffsetY = Math.max(1, lay.size * 0.05);
+      var lh = lay.size * LINE_EM;
+      var y = -((lay.lines.length - 1) / 2) * lh;
+      for (var k = 0; k < lay.lines.length; k++) {
+        ctx.fillText(lay.lines[k], outerR, y + k * lh);
+      }
+      ctx.restore();
+    }
+    ctx.restore();
+
+    /* Pegs sit on the boundaries so the flapper has something to hit. */
+    var pegs = n <= 60 ? n : 0;
+    for (var p = 0; p < pegs; p++) {
+      var pa = bounds[p] - Math.PI / 2;
+      var pr = R + rim / 2;
+      var px = cx + Math.cos(pa) * pr;
+      var py = cy + Math.sin(pa) * pr;
+      var pRad = Math.max(1.6, rim * 0.21);
+      ctx.beginPath();
+      ctx.arc(px, py, pRad, 0, TAU);
+      ctx.fillStyle = rimA;
+      ctx.fill();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = rimC;
+      ctx.stroke();
+    }
+
+    /* Inner bevel under the hub cap. */
+    ctx.beginPath();
+    ctx.arc(cx, cy, hubR, 0, TAU);
+    ctx.fillStyle = css.getPropertyValue("--hub-face").trim() || "#FBF8F1";
+    ctx.fill();
+  }
+
+  /* ---------- sound ---------- */
+
+  var audio = null;
+  function ac() {
+    if (!soundToggle.checked) return null;
+    if (!audio) {
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return null;
+      try { audio = new Ctx(); } catch (e) { return null; }
+    }
+    if (audio.state === "suspended") audio.resume();
+    return audio;
+  }
+
+  function click() {
+    var a = ac();
+    if (!a) return;
+    var t = a.currentTime;
+    var osc = a.createOscillator();
+    var gain = a.createGain();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(1250, t);
+    osc.frequency.exponentialRampToValueAtTime(620, t + 0.03);
+    gain.gain.setValueAtTime(0.07, t);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.045);
+    osc.connect(gain).connect(a.destination);
+    osc.start(t);
+    osc.stop(t + 0.05);
+  }
+
+  function chime() {
+    var a = ac();
+    if (!a) return;
+    var t = a.currentTime;
+    [523.25, 659.25, 783.99, 1046.5].forEach(function (f, i) {
+      var osc = a.createOscillator();
+      var gain = a.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(f, t + i * 0.085);
+      gain.gain.setValueAtTime(0.0001, t + i * 0.085);
+      gain.gain.exponentialRampToValueAtTime(0.16, t + i * 0.085 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.085 + 0.5);
+      osc.connect(gain).connect(a.destination);
+      osc.start(t + i * 0.085);
+      osc.stop(t + i * 0.085 + 0.55);
+    });
+  }
+
+  /* ---------- spinning ---------- */
+
+  function setSpinning(on) {
+    spinning = on;
+    spinBtn.disabled = on || entries.length < 1;
+    spinTarget.disabled = on || entries.length < 1;
+    clearBtn.disabled = on;
+    againBtn.disabled = on;
+    removeBtn.disabled = on;
+    entriesEl.readOnly = on;
+    spinBtn.textContent = on ? "Spinning…" : "Spin the wheel";
+  }
+
+  function spin() {
+    if (spinning) return;
+    syncEntries(false);
+    var n = entries.length;
+    if (!n) { resetVerdict(); draw(); return; }
+
+    setSpinning(true);
+    winnerIdx = -1;
+    verdictEl.classList.remove("is-won");
+    verdictLabel.textContent = "Spinning";
+    verdictName.className = "verdict-name is-idle";
+    verdictName.textContent = "…";
+    verdictActions.classList.add("is-idle");
+    draw();
+
+    var reduced = reduceMotion.matches;
+    var r = Math.random() * totalWeight;
+    var acc = 0, winner = n - 1;
+    for (var i = 0; i < n; i++) {
+      acc += entries[i].weight;
+      if (r < acc) { winner = i; break; }
+    }
+    /* Land inside the slice, never on a peg. */
+    var span = bounds[winner + 1] - bounds[winner];
+    var aim = bounds[winner] + (0.18 + 0.64 * Math.random()) * span;
+    var base = ((-aim) % TAU + TAU) % TAU;
+    var turns = reduced ? 0 : 4 + Math.floor(Math.random() * 4);
+    var target = base;
+    while (target < theta + turns * TAU + 0.0001) target += TAU;
+
+    var start = theta;
+    var delta = target - start;
+    var dur = reduced ? 650 : 4400 + Math.random() * 1600;
+    var t0 = performance.now();
+    var lastSlice = sliceAt(start);
+
+    function frame(now) {
+      var t = Math.min(1, (now - t0) / dur);
+      var eased = 1 - Math.pow(1 - t, 4.2);
+      theta = start + delta * eased;
+
+      var slice = sliceAt(theta);
+      if (slice !== lastSlice) {
+        lastSlice = slice;
+        if (!reduced) { click(); flap = -11; }
+      }
+      flap += (0 - flap) * 0.28;
+
+      canvas.style.transform = "rotate(" + theta + "rad)";
+      pointerEl.style.transform = reduced ? "" : "rotate(" + flap.toFixed(2) + "deg)";
+
+      if (t < 1) { requestAnimationFrame(frame); }
+      else {
+        theta = ((target % TAU) + TAU) % TAU;
+        canvas.style.transform = "rotate(" + theta + "rad)";
+        pointerEl.style.transform = "";
+        finish(winner);
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function finish(idx) {
+    setSpinning(false);
+    winnerIdx = idx;
+    draw();
+    chime();
+
+    var name = entries[idx].label;
+    var share = entries[idx].weight / totalWeight;
+    verdictEl.classList.add("is-won");
+    verdictLabel.textContent = "Winner";
+    verdictName.className = "verdict-name";
+    verdictName.textContent = name;
+    verdictActions.classList.remove("is-idle");
+    oddsEl.textContent = (share * 100).toFixed(1) + "% chance · " +
+      (share * 360).toFixed(1) + "° slice";
+    fitWheel();
+
+    history.unshift(name);
+    if (history.length > 40) history.pop();
+    renderHistory();
+    save();
+  }
+
+  function renderHistory() {
+    historyEl.textContent = "";
+    historyEmpty.hidden = history.length > 0;
+    clearHistoryBtn.hidden = history.length === 0;
+    for (var i = 0; i < history.length; i++) {
+      var li = document.createElement("li");
+      var n = document.createElement("span");
+      n.className = "n";
+      n.textContent = String(history.length - i).padStart(2, "0");
+      var who = document.createElement("span");
+      who.className = "who";
+      who.textContent = history[i];
+      li.appendChild(n);
+      li.appendChild(who);
+      historyEl.appendChild(li);
+    }
+  }
+
+  /* ---------- events ---------- */
+
+  spinTarget.addEventListener("click", spin);
+  spinBtn.addEventListener("click", spin);
+  againBtn.addEventListener("click", spin);
+
+  removeBtn.addEventListener("click", function () {
+    if (spinning || winnerIdx < 0) return;
+    var entry = entries[winnerIdx];
+    if (!entry) return;
+    var lines = entriesEl.value.split("\n");
+    if (entry.line < lines.length) lines.splice(entry.line, 1);
+    entriesEl.value = lines.join("\n").replace(/^\n+/, "");
+    claimList();
+    resetVerdict();
+    syncEntries();
+    entriesEl.focus();
+  });
+
+  clearBtn.addEventListener("click", function () {
+    if (spinning) return;
+    entriesEl.value = "";
+    claimList();
+    sampleHint.hidden = true;
+    resetVerdict();
+    syncEntries();
+    entriesEl.focus();
+  });
+
+  clearHistoryBtn.addEventListener("click", function () {
+    history = [];
+    renderHistory();
+    save();
+  });
+
+  entriesEl.addEventListener("input", function () {
+    claimList();
+    sampleHint.hidden = true;
+    if (winnerIdx >= 0) resetVerdict();
+    syncEntries();
+  });
+
+  var copyBtn = document.getElementById("copyBtn");
+  var copyTimer = 0;
+
+  function flashCopy(msg) {
+    copyBtn.textContent = msg;
+    clearTimeout(copyTimer);
+    copyTimer = setTimeout(function () { copyBtn.textContent = "Copy link"; }, 1800);
+  }
+
+  function copyFallback(text) {
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.cssText = "position:fixed;top:0;left:-9999px";
+    document.body.appendChild(ta);
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    return ok;
+  }
+
+  copyBtn.addEventListener("click", function () {
+    var url = shareUrl();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(
+        function () { flashCopy("Link copied"); },
+        function () { flashCopy(copyFallback(url) ? "Link copied" : "Copy failed"); }
+      );
+    } else {
+      flashCopy(copyFallback(url) ? "Link copied" : "Copy failed");
+    }
+  });
+
+  soundToggle.addEventListener("change", save);
+
+  var helpBtn = document.getElementById("weightHelpBtn");
+  var helpPop = document.getElementById("weightHelp");
+
+  function setHelp(open) {
+    helpPop.hidden = !open;
+    helpBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+
+  helpBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    setHelp(helpPop.hidden);
+  });
+
+  document.addEventListener("click", function (e) {
+    if (!helpPop.hidden && !helpPop.contains(e.target)) setHelp(false);
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && !helpPop.hidden) {
+      setHelp(false);
+      helpBtn.focus();
+    }
+  });
+
+  function setPanel(open) {
+    panelOpen = open;
+    layoutEl.classList.toggle("is-collapsed", !open);
+    panelToggle.setAttribute("aria-expanded", open ? "true" : "false");
+    panelToggleLabel.textContent = open ? "Hide list" : "Show list";
+    requestAnimationFrame(function () { fitWheel(); resize(); });
+  }
+
+  panelToggle.addEventListener("click", function () {
+    setPanel(!panelOpen);
+    save();
+  });
+
+  window.addEventListener("resize", fitWheel);
+  if (window.ResizeObserver) {
+    new ResizeObserver(resize).observe(wrap);
+  } else {
+    window.addEventListener("resize", resize);
+  }
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(function () { fitWheel(); draw(); });
+  }
+
+  /* ---------- boot ---------- */
+
+  load();
+  setPanel(panelOpen);
+  syncEntries(false);
+  resetVerdict();
+  renderHistory();
+  fitWheel();
+  resize();
+})();
+</script>
