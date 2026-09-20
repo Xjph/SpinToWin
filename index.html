@@ -544,6 +544,35 @@
     border: 0;
   }
 
+  .footer-section {
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .footer {
+    width: 150;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    background: var(--surface);
+    box-shadow: 0 2px 10px var(--shadow);
+    padding: 16px 20px 18px;
+    align-items: center;
+    text-align: center;
+    justify-content: center;
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+  }
+
+  .external-link {
+    color: var(--ink-soft)
+  }
+
+  .external-link:hover {
+    color: var(--ink)
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .verdict.is-won .verdict-name { animation: none; }
     .hub, button.act { transition: none; }
@@ -641,6 +670,11 @@
         <p class="history-empty" id="historyEmpty">No spins yet.</p>
       </div>
     </aside>
+    <section class="footer-section">
+      <div class="footer">
+        <a class="external-link" href="https://github.com/Xjph/SpinToWin">github</a> - <a class="external-link" href="https://ko-fi.com/vithigar">ko-fi</a>
+      </div>
+    </section>
   </div>
 </div>
 
