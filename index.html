@@ -1561,6 +1561,10 @@
       setHelp(false);
       helpBtn.focus();
     }
+    if (e.code === "Space" && document.activeElement !== document.getElementById("entries")) {
+      spin();
+      e.preventDefault();
+    }
   });
 
   function setPanel(open) {
