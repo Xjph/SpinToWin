@@ -1542,7 +1542,7 @@
       setHelp(false);
       helpBtn.focus();
     }
-    if (e.code === "Space" && document.activeElement !== document.getElementById("entries")) {
+    if (e.code === "Space" && document.activeElement !== entriesEl) {
       spin();
       e.preventDefault();
     }
