@@ -4,8 +4,11 @@ A simple randomized spinner single-page web application.
 
 ## Features
 
+- Multiple wheels, up to eight
+- Chain wheels, specific results can trigger other wheels
+- Renamable page and wheels
 - Persists entries to local storage
-- Sharable links which fully embed all list entries (can be shared across instances)
+- Sharable links
 - Adjustable weights per entry
 - Sound effects
 - Retains recent log of spin results

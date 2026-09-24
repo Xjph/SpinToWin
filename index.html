@@ -99,12 +99,48 @@
     font: 400 clamp(1.75rem, 5vw, 2.4rem)/1 var(--display);
     margin: 0;
     letter-spacing: -.015em;
-    text-wrap: balance;
+    /* One line, whole, always: nowrap plus the default min-width, so a
+       long name pushes the buttons to the next row. */
+    white-space: nowrap;
   }
   .wordmark em {
     font-style: normal;
     color: var(--brass);
   }
+
+  /* The masthead reads as a heading but edits like a field. */
+  .wordmark-btn,
+  .wordmark-input {
+    font: inherit;
+    letter-spacing: inherit;
+    padding: 3px 9px;
+    margin-left: -10px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+  }
+  .wordmark-btn {
+    display: block;
+    background: none;
+    color: inherit;
+    text-align: left;
+    cursor: text;
+    transition: border-color .15s ease;
+  }
+  .wordmark-btn:hover { border-color: var(--line); }
+  .wordmark-btn:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+
+  .wordmark-input {
+    width: 15ch;
+    max-width: 100%;
+    border-color: var(--brass);
+    background: var(--surface);
+    color: var(--ink);
+  }
+  .wordmark-input:focus { outline: none; }
+  .wordmark-input[hidden],
+  .wordmark-btn[hidden] { display: none; }
+
+  .tagline[hidden] { display: none; }
 
   .tagline {
     margin: 0;
@@ -118,8 +154,14 @@
     font: 400 10px/1 var(--mono)
   }
 
-  .panel-toggle {
+  .header-actions {
     align-self: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .header-button {
     display: inline-flex;
     align-items: center;
     gap: 9px;
@@ -135,44 +177,131 @@
     white-space: nowrap;
     transition: color .15s ease, border-color .15s ease;
   }
-  .panel-toggle:hover { color: var(--brass); border-color: var(--brass); }
-  .panel-toggle:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
-  .panel-toggle svg {
+  .header-button:hover { color: var(--brass); border-color: var(--brass); }
+  .header-button:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+  .header-button[disabled] { opacity: .45; cursor: default; }
+  .header-button[disabled]:hover { color: var(--ink-soft); border-color: var(--line); }
+  .header-button[hidden] { display: none; }
+  .header-button svg {
     width: 13px;
     height: 13px;
     flex: none;
-    transition: transform .2s ease;
   }
-  .panel-toggle[aria-expanded="false"] svg { transform: rotate(180deg); }
+  .header-button.icon-only { padding: 9px; }
+  .header-button.icon-only svg { width: 15px; height: 15px; }
 
-  /* ---------- layout ---------- */
+  #panelToggle svg { transition: transform .2s ease; }
+  #panelToggle[aria-expanded="false"] svg { transform: rotate(180deg); }
 
-  .layout {
+  #soundToggle .slash { display: none; }
+  #soundToggle[aria-pressed="false"] .wave { display: none; }
+  #soundToggle[aria-pressed="false"] .slash { display: block; }
+
+  /* ---------- board ---------- */
+
+  .board {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 340px;
-    gap: 36px;
+    grid-template-columns: repeat(var(--cols, 1), minmax(0, 1fr));
+    gap: 34px;
     align-items: start;
   }
 
-  @media (max-width: 880px) {
-    .layout { grid-template-columns: 1fr; gap: 30px; }
+  .wheel-card { container-type: inline-size; }
+
+  .board.is-multi .wheel-card {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 14px 18px 20px;
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .board.is-multi .wheel-card.is-active {
+    border-color: var(--brass);
+    box-shadow: 0 2px 14px var(--shadow);
   }
 
-  .layout.is-collapsed { grid-template-columns: 1fr; }
-  .layout.is-collapsed .panel { display: none; }
+  /* A lone wheel needs no title bar — the board's own name covers it. */
+  .card-head { display: none; }
+  .board.is-multi .card-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 9px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid var(--line);
+  }
 
-  @media (min-width: 881px) {
-    .layout.is-collapsed .stage {
-      --wheel-w: max(260px, min(100% - 348px, calc(100vh - 170px)));
-      --wheel-w: max(260px, min(100% - 348px, calc(100dvh - 170px)));
+  /* A plain label until you click it, an input the whole time. */
+  .card-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 4px 6px;
+    margin-left: -7px;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    background: transparent;
+    color: var(--ink-soft);
+    font: 400 10px/1.4 var(--mono);
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    text-overflow: ellipsis;
+    cursor: text;
+    transition: border-color .15s ease, background .15s ease;
+  }
+  .card-name::placeholder { color: var(--ink-soft); opacity: .8; }
+  .card-name:hover { border-color: var(--line); }
+  .card-name:focus {
+    outline: none;
+    border-color: var(--brass);
+    background: var(--surface);
+    color: var(--ink);
+  }
+  .wheel-card.is-active .card-name { color: var(--brass); }
+  .wheel-card.is-active .card-name:focus { color: var(--ink); }
+
+  .card-remove {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    flex: none;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    background: var(--surface);
+    color: var(--ink-soft);
+    cursor: pointer;
+    transition: color .15s ease, border-color .15s ease;
+  }
+  .card-remove:hover { color: var(--brass); border-color: var(--brass); }
+  .card-remove:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+  .card-remove[disabled] { opacity: .45; cursor: default; }
+  .card-remove svg { display: block; width: 12px; height: 12px; }
+
+  .card-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 30px;
+    align-items: start;
+  }
+
+  /* Wide card: list beside the wheel. Narrow, which is what tiling
+     produces: list underneath. */
+  @container (min-width: 780px) {
+    .board:not(.is-collapsed) .card-grid { grid-template-columns: minmax(0, 1fr) 320px; gap: 36px; }
+  }
+
+  .board.is-collapsed .panel { display: none; }
+
+  @container (min-width: 820px) {
+    .board.is-collapsed .stage {
       flex-direction: row;
       align-items: center;
       justify-content: center;
       gap: 28px;
     }
-    .layout.is-collapsed .verdict {
-      width: 320px;
-      flex: 0 0 320px;
+    .board.is-collapsed .verdict {
+      width: 300px;
+      flex: 0 0 300px;
     }
   }
 
@@ -423,6 +552,7 @@
     font-size: 12.5px;
     color: var(--ink-soft);
   }
+  .hint[hidden] { display: none; }
 
   .hint code,
   .help-pop code {
@@ -528,16 +658,6 @@
     color: var(--ink-soft);
   }
 
-  .toggle {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    font-size: 13.5px;
-    color: var(--ink-soft);
-    cursor: pointer;
-  }
-  .toggle input { accent-color: var(--brass); width: 15px; height: 15px; cursor: pointer; }
-
   .sr-only {
     position: absolute;
     width: 1px; height: 1px;
@@ -558,106 +678,141 @@
 
   @media (prefers-reduced-motion: reduce) {
     .verdict.is-won .verdict-name { animation: none; }
-    .hub, button.act { transition: none; }
+    .hub, button.act, .wheel-card { transition: none; }
   }
 </style>
 
+<svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+  <defs>
+    <linearGradient id="brassGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F6E3B4"></stop>
+      <stop offset="45%" stop-color="#D9A644"></stop>
+      <stop offset="100%" stop-color="#8A5C11"></stop>
+    </linearGradient>
+  </defs>
+</svg>
+
 <div class="page">
   <header class="masthead">
-    <h1 class="wordmark">Spin to <em>Win</em></h1>
-    <p class="tagline">Type a list, give the wheel a shove, let the flapper decide.</p>
+    <h1 class="wordmark">
+      <button class="wordmark-btn" id="titleBtn" type="button" title="Click to rename this board">
+        <span id="titleText">Spin to <em>Win</em></span>
+      </button>
+      <input class="wordmark-input" id="titleInput" type="text" maxlength="40"
+             spellcheck="false" autocomplete="off" aria-label="Board name" hidden>
+    </h1>
+    <p class="tagline" id="tagline">Type a list, give the wheel a shove, let the flapper decide.</p>
     <div class="links">
         <a class="external-link" href="https://github.com/Xjph/SpinToWin">github</a> - <a class="external-link" href="https://ko-fi.com/vithigar">ko-fi</a>
     </div>
-    <button class="panel-toggle" id="panelToggle" type="button" aria-expanded="true" aria-controls="panel">
-      <svg viewBox="0 0 16 16" aria-hidden="true">
-        <path d="M6 3 L11 8 L6 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-      </svg>
-      <span id="panelToggleLabel">Hide list</span>
-    </button>
+    <div class="header-actions">
+      <button class="header-button icon-only" id="soundToggle" type="button" aria-pressed="true" aria-label="Peg clicks and winner chime">
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M8.6 2.4 L4.9 5.5 H2.2 v5 H4.9 l3.7 3.1 z" fill="currentColor"></path>
+          <path class="wave" d="M11 5.6 a3.4 3.4 0 0 1 0 4.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+          <path class="slash" d="M11 5.6 L14.6 10.4 M14.6 5.6 L11 10.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+        </svg>
+      </button>
+      <button class="header-button" id="copyBtn" type="button"><span id="copyLabel">Copy link</span></button>
+      <button class="header-button" id="addWheel" type="button">
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M8 3 V13 M3 8 H13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+        </svg>
+        Add wheel
+      </button>
+      <button class="header-button" id="spinAll" type="button" hidden>Spin all</button>
+      <button class="header-button" id="panelToggle" type="button" aria-expanded="true" aria-controls="board">
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M6 3 L11 8 L6 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+        </svg>
+        <span id="panelToggleLabel">Hide list</span>
+      </button>
+    </div>
   </header>
 
-  <div class="layout" id="layout">
-    <section class="stage">
-      <div class="wheel-wrap" id="wheelWrap">
-        <canvas class="wheel-canvas" id="wheel"></canvas>
-        <button class="spin-target" id="spinTarget" aria-label="Spin the wheel"></button>
-        <div class="hub" aria-hidden="true"><span>Spin</span></div>
-        <div class="pointer" id="pointer" aria-hidden="true">
-          <svg viewBox="0 0 46 56" role="presentation">
-            <defs>
-              <linearGradient id="brassGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="#F6E3B4"></stop>
-                <stop offset="45%" stop-color="#D9A644"></stop>
-                <stop offset="100%" stop-color="#8A5C11"></stop>
-              </linearGradient>
-            </defs>
-            <path d="M23 54 L7 20 Q23 5 39 20 Z" fill="url(#brassGrad)" stroke="#5B3B08" stroke-width="2.4" stroke-linejoin="round"></path>
-            <circle cx="23" cy="18" r="4.4" fill="#5B3B08"></circle>
-            <circle cx="21.4" cy="16.6" r="1.5" fill="#F6E3B4"></circle>
-          </svg>
-        </div>
-      </div>
+  <div class="board" id="board"></div>
+</div>
 
-      <div class="verdict" id="verdict">
-        <span class="verdict-label" id="verdictLabel">Ready</span>
-        <p class="verdict-name is-idle" id="verdictName" aria-live="polite">Tap the wheel or hit Spin to pick a winner.</p>
-        <div class="verdict-actions is-idle" id="verdictActions">
-          <button class="act primary" id="againBtn" type="button">Spin again</button>
-          <button class="act" id="removeBtn" type="button">Remove from list</button>
-        </div>
-        <p class="odds" id="odds"></p>
-      </div>
-    </section>
+<template id="wheelTpl">
+  <article class="wheel-card">
+    <div class="card-head">
+      <input class="card-name" type="text" placeholder="Wheel 1" maxlength="40"
+             spellcheck="false" autocomplete="off" aria-label="Wheel name">
+      <button class="card-remove" type="button" aria-label="Remove this wheel">
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M4 4 L12 12 M12 4 L4 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+        </svg>
+      </button>
+    </div>
 
-    <aside class="panel" id="panel">
-      <div>
-        <div class="field-head">
-          <label for="entries">Entries — one per line</label>
-          <span class="field-meta">
-            <b id="count">8 slices</b>
-            <button class="info-btn" id="weightHelpBtn" type="button"
-                    aria-expanded="false" aria-controls="weightHelp"
-                    aria-label="How entry weights work">
-              <svg viewBox="0 0 16 16" aria-hidden="true">
-                <circle cx="8" cy="4.2" r="1.15" fill="currentColor"></circle>
-                <path d="M8 7.2 V12.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
-              </svg>
-            </button>
-          </span>
-          <div class="help-pop" id="weightHelp" hidden>
-            <p>Adjust the weight of an entry by prefixing its line with a number followed by <code>#</code>.</p>
-            <p><i>e.g.</i> <code>2#Blue</code> to double the weight.</p>
-            <p>Decimals can also be used: <code>0.5#Green</code>.</p>
-            <p>Zero weight items, like <code>0#Maybe</code>, are omitted from the wheel.</p>
+    <div class="card-grid">
+      <section class="stage">
+        <div class="wheel-wrap">
+          <canvas class="wheel-canvas"></canvas>
+          <button class="spin-target" type="button" aria-label="Spin the wheel"></button>
+          <div class="hub" aria-hidden="true"><span>Spin</span></div>
+          <div class="pointer" aria-hidden="true">
+            <svg viewBox="0 0 46 56" role="presentation">
+              <path d="M23 54 L7 20 Q23 5 39 20 Z" fill="url(#brassGrad)" stroke="#5B3B08" stroke-width="2.4" stroke-linejoin="round"></path>
+              <circle cx="23" cy="18" r="4.4" fill="#5B3B08"></circle>
+              <circle cx="21.4" cy="16.6" r="1.5" fill="#F6E3B4"></circle>
+            </svg>
           </div>
         </div>
-        <textarea class="entries" id="entries" spellcheck="false" aria-describedby="entriesHint"></textarea>
-        <p class="hint" id="entriesHint">Sample list loaded — replace it with your own names.</p>
-        <div class="row">
-          <button class="act primary" id="spinBtn" type="button">Spin the wheel</button>
-          <button class="act" id="clearBtn" type="button">Clear</button>
-          <button class="act" id="copyBtn" type="button">Copy link</button>
-        </div>
-        <div class="row">
-          <label class="toggle" for="soundToggle">
-            <input type="checkbox" id="soundToggle" checked>
-            Peg clicks &amp; winner chime
-          </label>
-        </div>
-      </div>
 
-      <div>
-        <div class="history-head">
-          <h2>Results log</h2>
-          <button class="link-btn" id="clearHistory" type="button" hidden>Clear</button>
+        <div class="verdict">
+          <span class="verdict-label">Ready</span>
+          <p class="verdict-name is-idle" aria-live="polite">Tap the wheel or hit Spin to pick a winner.</p>
+          <div class="verdict-actions is-idle">
+            <button class="act primary again" type="button">Spin again</button>
+            <button class="act remove" type="button">Remove from list</button>
+          </div>
+          <p class="odds"></p>
         </div>
-        <ul class="history" id="history"></ul>
-        <p class="history-empty" id="historyEmpty">No spins yet.</p>
-      </div>
-    </aside>
-  </div>
-</div>
+      </section>
+
+      <aside class="panel">
+        <div>
+          <div class="field-head">
+            <label class="entries-label">Entries — one per line</label>
+            <span class="field-meta">
+              <b class="count">0 slices</b>
+              <button class="info-btn" type="button" aria-expanded="false" aria-label="How entry weights and triggers work">
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <circle cx="8" cy="4.2" r="1.15" fill="currentColor"></circle>
+                  <path d="M8 7.2 V12.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                </svg>
+              </button>
+            </span>
+            <div class="help-pop" hidden>
+              <p>Adjust the weight of an entry by prefixing its line with a number followed by <code>#</code>.</p>
+              <p><i>e.g.</i> <code>2#Blue</code> to double the weight.</p>
+              <p>Decimals can also be used: <code>0.5#Green</code>.</p>
+              <p>Zero weight items, like <code>0#Maybe</code>, are omitted from the wheel.</p>
+              <p>End an entry with <code>!</code> and a wheel's name to spin that wheel when the entry wins: <code>Coffee!Snacks</code>.</p>
+              <p>The name has to match a wheel on the board, so an entry like <code>Ready! Set</code> is left alone.</p>
+            </div>
+          </div>
+          <textarea class="entries" spellcheck="false"></textarea>
+          <p class="hint" hidden></p>
+          <div class="row">
+            <button class="act primary spin" type="button">Spin the wheel</button>
+            <button class="act clear" type="button">Clear</button>
+          </div>
+        </div>
+
+        <div>
+          <div class="history-head">
+            <h2>Results log</h2>
+            <button class="link-btn clear-history" type="button" hidden>Clear</button>
+          </div>
+          <ul class="history"></ul>
+          <p class="history-empty">No spins yet.</p>
+        </div>
+      </aside>
+    </div>
+  </article>
+</template>
 
 <script>
 (function () {
@@ -671,60 +826,49 @@
   ];
 
   var SAMPLE = ["Apples", "Oranges", "2#Bananas", "0.5#Pears"];
-  var STORE_KEY = "spin-to-win/v1";
+  var STORE_KEY = "spin-to-win/v2";
+  var LEGACY_KEY = "spin-to-win/v1";
   var MAX_ENTRIES = 300;
+  var MAX_WHEELS = 8;
+  var MAX_NAME = 40;
+  var GRID_GAP = 34;
 
-  var canvas = document.getElementById("wheel");
-  var ctx = canvas.getContext("2d");
-  var wrap = document.getElementById("wheelWrap");
-  var pointerEl = document.getElementById("pointer");
-  var spinTarget = document.getElementById("spinTarget");
-  var entriesEl = document.getElementById("entries");
-  var sampleHint = document.getElementById("entriesHint");
-  var countEl = document.getElementById("count");
-  var oddsEl = document.getElementById("odds");
-  var verdictEl = document.getElementById("verdict");
-  var verdictLabel = document.getElementById("verdictLabel");
-  var verdictName = document.getElementById("verdictName");
-  var verdictActions = document.getElementById("verdictActions");
-  var spinBtn = document.getElementById("spinBtn");
-  var againBtn = document.getElementById("againBtn");
-  var removeBtn = document.getElementById("removeBtn");
-  var clearBtn = document.getElementById("clearBtn");
-  var soundToggle = document.getElementById("soundToggle");
-  var historyEl = document.getElementById("history");
-  var historyEmpty = document.getElementById("historyEmpty");
-  var clearHistoryBtn = document.getElementById("clearHistory");
-  var layoutEl = document.getElementById("layout");
+  var boardEl = document.getElementById("board");
+  var tpl = document.getElementById("wheelTpl");
   var pageEl = document.querySelector(".page");
   var mastheadEl = document.querySelector(".masthead");
-  var stageEl = document.querySelector(".stage");
   var panelToggle = document.getElementById("panelToggle");
   var panelToggleLabel = document.getElementById("panelToggleLabel");
+  var addWheelBtn = document.getElementById("addWheel");
+  var spinAllBtn = document.getElementById("spinAll");
+  var copyBtn = document.getElementById("copyBtn");
+  var copyLabel = document.getElementById("copyLabel");
+  var soundBtn = document.getElementById("soundToggle");
+  var titleBtn = document.getElementById("titleBtn");
+  var titleText = document.getElementById("titleText");
+  var titleInput = document.getElementById("titleInput");
+  var taglineEl = document.getElementById("tagline");
 
   var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
-  var entries = [];
-  var history = [];
-  var theta = 0;
-  var flap = 0;
-  var spinning = false;
-  var winnerIdx = -1;
-  var size = 0;
+  var wheels = [];
+  var wheelSeq = 0;
+  var activeWheel = null;
   var panelOpen = true;
-  var totalWeight = 0;
-  var bounds = [0];
-  var idleOdds = "";
-  var fromUrl = false;
-  var storedText = "";
+  /* What to persist: a link collapses the lists, but only the toggle
+     moves the saved preference. */
+  var storedPanel = true;
+  var soundOn = true;
+  var boardTitle = "";
 
-  /* ---------- storage ---------- */
+  /* A link is shown, but the saved board is held in reserve until the
+     visitor edits: opening a link never loses the lists they had. */
+  var boardFromUrl = false;
+  var shadow = null;
 
   /* ---------- link payload ----------
-     Copy link emits ?w=<base64url>, so the wheel isn't legible in the
-     address bar before anyone opens it. The bytes are a format flag
-     (0 raw UTF-8, 1 LZW) followed by the list text, LZW'd whenever that
-     comes out smaller. */
+     Packed so the lists aren't legible in the address bar: a format flag
+     (0 raw UTF-8, 1 LZW) then the text, LZW'd when that comes out smaller. */
 
   var B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
   var B64REV = (function () {
@@ -831,7 +975,7 @@
     return outb;
   }
 
-  function packList(text) {
+  function packText(text) {
     var bytes = new TextEncoder().encode(text);
     var lzw = lzwEncode(bytes);
     var useLzw = lzw.length > 0 && lzw.length < bytes.length;
@@ -842,53 +986,36 @@
     return bytesToB64(buf);
   }
 
-  function unpackList(str) {
+  function unpackText(str) {
     if (!hasCodec) return null;
     var buf = b64ToBytes(str);
     if (!buf || buf.length < 2) return null;
     var body = buf.subarray(1);
     var bytes = buf[0] === 1 ? lzwDecode(body) : buf[0] === 0 ? body : null;
     if (!bytes) return null;
-    /* fatal, so a mangled link falls through to the saved list rather
-       than filling the wheel with replacement characters. */
+    /* fatal, so a mangled link falls through to the saved board rather
+       than to replacement characters. */
     try { return new TextDecoder("utf-8", { fatal: true }).decode(bytes); }
     catch (e) { return null; }
   }
 
   /* ---------- shareable links ----------
-     ?w=<base64url>                — what Copy link writes
-     ?list=Red%0AGreen%0A2%23Blue  — readable form, newline or comma
-                                     separated, still accepted
+     ?b=<b64>                      — the whole board; what Copy link writes
+     Older links still open:
+     ?w=<b64>&w=<b64>              — one packed list per wheel
+     ?n=<b64>&n=                   — wheel names, positional against the w's
+     ?t=<b64>                      — the board's own name
+     ?list=Red%0AGreen%0A2%23Blue  — readable, newline or comma separated
      ?e=Red&e=Green                — one parameter per entry, for labels
-                                     that contain a comma */
+                                     containing a comma
+     The readable forms describe a single wheel. */
 
   function queryString() {
     var s = location.search.replace(/^\?/, "");
     var h = location.hash.replace(/^#/, "");
     if (!h) return s;
-    /* A hand-typed "2#Blue" puts everything from the # into the fragment.
-       Stitch it back on so unencoded links still work. */
+    /* A hand-typed "2#Blue" spills into the fragment; stitch it back on. */
     return s ? s + "#" + h : h;
-  }
-
-  function listFromUrl() {
-    var params;
-    try { params = new URLSearchParams(queryString()); } catch (e) { return null; }
-    var parts, packed = params.get("w");
-    if (packed) {
-      var text = unpackList(packed.trim());
-      if (text === null) return null;
-      return trimAll(text.split(/[\r\n]+/));
-    }
-    var raw = params.get("list");
-    if (raw === null) raw = params.get("entries");
-    if (raw !== null) {
-      parts = /[\r\n]/.test(raw) ? raw.split(/[\r\n]+/) : raw.split(",");
-    } else {
-      parts = params.getAll("e");
-      if (!parts.length) return null;
-    }
-    return trimAll(parts);
   }
 
   function trimAll(parts) {
@@ -900,389 +1027,177 @@
     return out.length ? out : null;
   }
 
+  function cleanName(s) {
+    return String(s).replace(/\s+/g, " ").trim().slice(0, MAX_NAME);
+  }
+
+  /* Title, then a record per wheel: name on the first line, entries on
+     the rest. One payload rather than a parameter apiece gives LZW a
+     single dictionary over every list, which is where the saving is. */
+  var REC = "\x1E";
+
+  function cleanShare(s) {
+    /* Control bytes have no place in a label and would confuse the frame. */
+    return String(s).replace(/[\x00-\x09\x0B-\x1F\x7F]/g, " ");
+  }
+
+  function packBoard() {
+    var recs = [cleanShare(boardTitle)];
+    for (var i = 0; i < wheels.length; i++) {
+      var lines = wheels[i].rawLines();
+      if (!lines.length) continue;
+      recs.push(cleanShare(wheels[i].getName()) + "\n" + cleanShare(lines.join("\n")));
+    }
+    return recs.length > 1 ? recs.join(REC) : null;
+  }
+
+  function unpackBoard(text) {
+    var recs = text.split(REC);
+    if (recs.length < 2) return null;
+    var out = [];
+    for (var i = 1; i < recs.length && out.length < MAX_WHEELS; i++) {
+      var lines = recs[i].split("\n");
+      var list = trimAll(lines.slice(1));
+      if (!list) continue;
+      out.push({ list: list, name: cleanName(lines[0]) });
+    }
+    return out.length ? { title: cleanName(recs[0]), wheels: out } : null;
+  }
+
+  function boardFromLink() {
+    var params;
+    try { params = new URLSearchParams(queryString()); } catch (e) { return null; }
+
+    var whole = params.get("b");
+    if (whole) {
+      var flat = unpackText(whole.trim());
+      return flat === null ? null : unpackBoard(flat);
+    }
+
+    var title = "";
+    var rawTitle = params.get("t");
+    if (rawTitle) {
+      var decodedTitle = unpackText(rawTitle.trim());
+      if (decodedTitle !== null) title = cleanName(decodedTitle);
+    }
+
+    var packed = params.getAll("w");
+    if (packed.length) {
+      var names = params.getAll("n");
+      var out = [];
+      for (var i = 0; i < packed.length && out.length < MAX_WHEELS; i++) {
+        var text = unpackText(packed[i].trim());
+        if (text === null) return null;
+        var list = trimAll(text.split(/[\r\n]+/));
+        if (!list) continue;
+        /* A name that won't decode costs the wheel its title, not the link. */
+        var name = "";
+        if (names[i]) {
+          var decoded = unpackText(names[i].trim());
+          if (decoded !== null) name = cleanName(decoded);
+        }
+        out.push({ list: list, name: name });
+      }
+      return out.length ? { title: title, wheels: out } : null;
+    }
+
+    var parts, raw = params.get("list");
+    if (raw === null) raw = params.get("entries");
+    if (raw !== null) {
+      parts = /[\r\n]/.test(raw) ? raw.split(/[\r\n]+/) : raw.split(",");
+    } else {
+      parts = params.getAll("e");
+      if (!parts.length) return null;
+    }
+    var one = trimAll(parts);
+    return one ? { title: title, wheels: [{ list: one, name: "" }] } : null;
+  }
+
   function shareUrl() {
     var base = location.href.split(/[?#]/)[0];
-    var lines = rawLines();
-    if (!lines.length) return base;
-    var text = lines.join("\n");
-    if (hasCodec) return base + "?w=" + packList(text);
-    /* No TextEncoder: fall back to the readable form rather than no link. */
-    return base + "?list=" + encodeURIComponent(text);
+    var board = packBoard();
+    if (!board) return base;
+    if (!hasCodec) {
+      /* No TextEncoder: a readable single-wheel link beats no link at all. */
+      for (var i = 0; i < wheels.length; i++) {
+        var lines = wheels[i].rawLines();
+        if (lines.length) return base + "?list=" + encodeURIComponent(lines.join("\n"));
+      }
+      return base;
+    }
+    return base + "?b=" + packText(board);
   }
 
   /* ---------- storage ---------- */
 
-  function load() {
-    var saved = null;
-    try { saved = JSON.parse(localStorage.getItem(STORE_KEY) || "null"); } catch (e) { saved = null; }
-    if (saved && typeof saved.text === "string") storedText = saved.text;
-    else if (saved && Array.isArray(saved.entries)) storedText = saved.entries.join("\n");
+  function readStore(key) {
+    try { return JSON.parse(localStorage.getItem(key) || "null"); }
+    catch (e) { return null; }
+  }
 
-    var shared = listFromUrl();
-    if (shared) {
-      /* A link wins over the saved list, but doesn't overwrite it until
-         the visitor edits something — so an opened link is not a way to
-         lose the list you had. */
-      entriesEl.value = shared.join("\n");
-      fromUrl = true;
-      sampleHint.textContent = "List loaded from the link. Editing it makes it yours.";
-    } else if (storedText && storedText.trim()) {
-      entriesEl.value = storedText;
-      sampleHint.hidden = true;
-    } else {
-      entriesEl.value = SAMPLE.join("\n");
+  function loadState() {
+    var saved = readStore(STORE_KEY);
+    if (saved && Array.isArray(saved.wheels)) return saved;
+
+    var old = readStore(LEGACY_KEY);
+    if (old && typeof old === "object") {
+      var text = typeof old.text === "string" ? old.text
+        : Array.isArray(old.entries) ? old.entries.join("\n") : "";
+      return {
+        title: "",
+        wheels: [{ text: text, name: "", history: Array.isArray(old.history) ? old.history : [] }],
+        sound: typeof old.sound === "boolean" ? old.sound : true,
+        panel: typeof old.panel === "boolean" ? old.panel : true
+      };
     }
-    if (saved && Array.isArray(saved.history)) history = saved.history.slice(0, 40);
-    if (saved && typeof saved.sound === "boolean") soundToggle.checked = saved.sound;
-    if (saved && typeof saved.panel === "boolean") panelOpen = saved.panel;
+    return null;
+  }
+
+  function wheelsForSave() {
+    var live = [], i;
+    for (i = 0; i < wheels.length; i++) live.push(wheels[i].serialize());
+    if (!boardFromUrl) return live;
+
+    /* Showing a link: keep the saved board, but let spins here reach its
+       history. */
+    var kept = (shadow && shadow.wheels) ? shadow.wheels : [];
+    if (!kept.length) kept = [{ text: "", name: "", history: [] }];
+    var out = [];
+    for (i = 0; i < kept.length; i++) {
+      out.push({
+        text: typeof kept[i].text === "string" ? kept[i].text : "",
+        name: typeof kept[i].name === "string" ? kept[i].name : "",
+        history: live[i] ? live[i].history : (Array.isArray(kept[i].history) ? kept[i].history : [])
+      });
+    }
+    return out;
   }
 
   function save() {
     try {
       localStorage.setItem(STORE_KEY, JSON.stringify({
-        text: fromUrl ? storedText : entriesEl.value,
-        history: history,
-        sound: soundToggle.checked,
-        panel: panelOpen
+        v: 2,
+        title: boardFromUrl ? ((shadow && shadow.title) || "") : boardTitle,
+        wheels: wheelsForSave(),
+        sound: soundOn,
+        panel: storedPanel
       }));
     } catch (e) { /* ignore and continue, page works without storage */ }
   }
 
-  function claimList() {
-    if (!fromUrl) return;
-    fromUrl = false;
-    sampleHint.hidden = true;
-  }
-
-  /* ---------- entries ---------- */
-
-  /* "2#Blue" or "1.5#Blue" — a leading number and # set the entry's weight.
-     Anything else is a plain entry weighing 1. */
-  var WEIGHT_RE = /^(\d*\.?\d+)\s*#\s*(.+)$/;
-
-  function readEntries() {
-    var lines = entriesEl.value.split("\n");
-    var out = [];
-    for (var i = 0; i < lines.length && out.length < MAX_ENTRIES; i++) {
-      var s = lines[i].trim();
-      if (!s) continue;
-      var m = WEIGHT_RE.exec(s);
-      var weight = m ? parseFloat(m[1]) : 1;
-      /* A zero weight is a slice nobody can land on — leave it off the wheel. */
-      if (!(weight > 0)) continue;
-      out.push({ label: m ? m[2].trim() : s, weight: weight, line: i });
-    }
-    return out;
-  }
-
-  function rawLines() {
-    var lines = entriesEl.value.split("\n");
-    var out = [];
-    for (var i = 0; i < lines.length; i++) {
-      var s = lines[i].trim();
-      if (s) out.push(s);
-    }
-    return out;
-  }
-
-  function computeBounds() {
-    var n = entries.length, i;
-    totalWeight = 0;
-    for (i = 0; i < n; i++) totalWeight += entries[i].weight;
-    bounds = [0];
-    var acc = 0;
-    for (i = 0; i < n; i++) {
-      acc += entries[i].weight;
-      bounds.push((acc / totalWeight) * TAU);
-    }
-    if (n) bounds[n] = TAU;
-  }
-
-  function sliceAt(rot) {
-    var n = entries.length;
-    if (!n) return -1;
-    var a = ((-rot) % TAU + TAU) % TAU;
-    var lo = 0, hi = n - 1;
-    while (lo < hi) {
-      var mid = (lo + hi + 1) >> 1;
-      if (bounds[mid] <= a) lo = mid; else hi = mid - 1;
-    }
-    return lo;
-  }
-
-  function trimNum(v) {
-    return String(Math.round(v * 1000) / 1000);
-  }
-
-  function colorFor(i, n) {
-    var c = i % PALETTE.length;
-    if (n > 2 && i === n - 1 && c === 0) c = 5;
-    return PALETTE[c];
-  }
-
-  function syncEntries(redraw) {
-    entries = readEntries();
-    computeBounds();
-    var n = entries.length, weighted = false;
-    for (var i = 0; i < n; i++) {
-      if (entries[i].weight !== 1) { weighted = true; break; }
-    }
-    countEl.textContent = n === 1 ? "1 slice" : n + " slices";
-    idleOdds = !n ? ""
-      : weighted
-        ? n + (n === 1 ? " slice" : " slices") + " · " + trimNum(totalWeight) + " total weight"
-        : (360 / n).toFixed(1) + "° per slice · 1 in " + n + " odds";
-    if (winnerIdx < 0) oddsEl.textContent = idleOdds;
-    spinBtn.disabled = n < 1;
-    spinTarget.disabled = n < 1;
-    if (redraw !== false) draw();
-    save();
-  }
-
-  function resetVerdict() {
-    winnerIdx = -1;
-    verdictEl.classList.remove("is-won");
-    verdictLabel.textContent = "Ready";
-    verdictName.className = "verdict-name is-idle";
-    verdictName.textContent = entries.length
-      ? "Tap the wheel to pick a winner."
-      : "Add a few entries to build the wheel.";
-    verdictActions.classList.add("is-idle");
-    oddsEl.textContent = idleOdds;
-    fitWheel();
-  }
-
-  /* ---------- drawing ---------- */
-
-  /* ---------- label fitting ---------- */
-
-  var MEASURE_PX = 100;
-  var LINE_EM = 1.14;
-  var SAFETY = 0.9;
-
-  function unitWidth(s) {
-    return ctx.measureText(s).width / MEASURE_PX;
-  }
-
-  function sizeForLines(lines, seg, outerR, maxW, maxSize) {
-    var uMax = 0;
-    for (var i = 0; i < lines.length; i++) {
-      var u = unitWidth(lines[i]);
-      if (u > uMax) uMax = u;
-    }
-    if (uMax <= 0) return 0;
-    var hEm = lines.length === 1 ? 1 : lines.length * LINE_EM;
-    var byHeight = (seg * outerR * SAFETY) / (hEm + seg * uMax);
-    var byWidth = maxW / uMax;
-    return Math.min(byHeight, byWidth, maxSize);
-  }
-
-  function splitInto(words, n) {
-    if (words.length < n) return null;
-    if (n === 1) return [words.join(" ")];
-    var best = null, bestW = Infinity, i, j;
-    if (n === 2) {
-      for (i = 1; i < words.length; i++) {
-        var a = words.slice(0, i).join(" "), b = words.slice(i).join(" ");
-        var w = Math.max(unitWidth(a), unitWidth(b));
-        if (w < bestW) { bestW = w; best = [a, b]; }
-      }
-      return best;
-    }
-    for (i = 1; i < words.length - 1; i++) {
-      for (j = i + 1; j < words.length; j++) {
-        var p = words.slice(0, i).join(" ");
-        var q = words.slice(i, j).join(" ");
-        var r = words.slice(j).join(" ");
-        var m = Math.max(unitWidth(p), unitWidth(q), unitWidth(r));
-        if (m < bestW) { bestW = m; best = [p, q, r]; }
-      }
-    }
-    return best;
-  }
-
-  function layoutLabel(text, seg, outerR, maxW, maxSize) {
-    var words = text.split(/\s+/).filter(Boolean);
-    var best = { lines: [text], size: sizeForLines([text], seg, outerR, maxW, maxSize) };
-    var maxLines = words.length > 10 ? 2 : 3;
-    for (var n = 2; n <= maxLines; n++) {
-      var lines = splitInto(words, n);
-      if (!lines) break;
-      var s = sizeForLines(lines, seg, outerR, maxW, maxSize);
-      /* Only spend an extra line if it buys a meaningfully bigger face. */
-      if (s > best.size * 1.08) best = { lines: lines, size: s };
-    }
-    return best;
-  }
-
-  function fitWheel() {
-    var st = getComputedStyle(stageEl);
-    var pg = getComputedStyle(pageEl);
-    var root = getComputedStyle(document.documentElement);
-    var isRow = st.flexDirection === "row";
-
-    var chrome =
-      parseFloat(root.paddingTop) + parseFloat(root.paddingBottom) +
-      parseFloat(pg.paddingTop) + parseFloat(pg.paddingBottom) +
-      mastheadEl.offsetHeight + parseFloat(getComputedStyle(mastheadEl).marginBottom);
-
-    var h = window.innerHeight - chrome - 6;
-    var w = stageEl.clientWidth;
-    if (isRow) w -= verdictEl.offsetWidth + (parseFloat(st.columnGap) || 28);
-    else h -= verdictEl.offsetHeight + (parseFloat(st.rowGap) || 20);
-
-    var px = Math.max(260, Math.min(w, h));
-    var cur = parseFloat(stageEl.style.getPropertyValue("--wheel-w")) || 0;
-    if (Math.abs(px - cur) > 1) {
-      stageEl.style.setProperty("--wheel-w", px.toFixed(1) + "px");
-    }
-  }
-
-  function resize() {
-    var w = Math.round(wrap.clientWidth);
-    if (!w) return;
-    var dpr = Math.min(window.devicePixelRatio || 1, 2);
-    size = w;
-    canvas.width = Math.round(w * dpr);
-    canvas.height = Math.round(w * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    draw();
-  }
-
-  function draw() {
-    if (!size) return;
-    var n = entries.length;
-    var cx = size / 2, cy = size / 2;
-    var rim = Math.max(8, size * 0.042);
-    var R = size / 2 - rim - 2;
-    var hubR = size * 0.115;
-    var css = getComputedStyle(document.documentElement);
-    var rimA = css.getPropertyValue("--rim-a").trim() || "#F0DCA8";
-    var rimB = css.getPropertyValue("--rim-b").trim() || "#A9721B";
-    var rimC = css.getPropertyValue("--rim-c").trim() || "#6E4910";
-
-    ctx.clearRect(0, 0, size, size);
-
-    /* Rim: a brass band carrying one peg per slice boundary. */
-    var band = ctx.createLinearGradient(0, 0, size, size);
-    band.addColorStop(0, rimA);
-    band.addColorStop(0.42, rimB);
-    band.addColorStop(1, rimC);
-    ctx.beginPath();
-    ctx.arc(cx, cy, R + rim / 2, 0, TAU);
-    ctx.lineWidth = rim;
-    ctx.strokeStyle = band;
-    ctx.stroke();
-
-    if (!n) {
-      ctx.beginPath();
-      ctx.arc(cx, cy, R, 0, TAU);
-      ctx.fillStyle = css.getPropertyValue("--surface-2").trim() || "#F2F0F8";
-      ctx.fill();
-      ctx.setLineDash([7, 8]);
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = css.getPropertyValue("--line").trim() || "#D5D1E2";
-      ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.fillStyle = css.getPropertyValue("--ink-soft").trim() || "#5C5670";
-      ctx.font = "500 " + Math.max(12, size * 0.036) + "px Archivo, sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText("Empty wheel", cx, cy - size * 0.075);
-      return;
-    }
-
-    for (var i = 0; i < n; i++) {
-      var a0 = bounds[i] - Math.PI / 2;
-      var a1 = bounds[i + 1] - Math.PI / 2;
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.arc(cx, cy, R, a0, a1);
-      ctx.closePath();
-      ctx.fillStyle = colorFor(i, n);
-      ctx.fill();
-      if (n <= 60) {
-        ctx.lineWidth = 1;
-        ctx.strokeStyle = "rgba(0,0,0,.18)";
-        ctx.stroke();
-      }
-    }
-
-    /* The winning slice gets lifted rather than announced twice. */
-    if (winnerIdx >= 0 && winnerIdx < n) {
-      var w0 = bounds[winnerIdx] - Math.PI / 2;
-      var w1 = bounds[winnerIdx + 1] - Math.PI / 2;
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.arc(cx, cy, R, w0, w1);
-      ctx.closePath();
-      ctx.fillStyle = "rgba(255,255,255,.26)";
-      ctx.fill();
-      ctx.lineWidth = Math.max(2, size * 0.008);
-      ctx.strokeStyle = "rgba(255,255,255,.9)";
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    var outerR = R - size * 0.035;
-    var innerR = hubR + size * 0.025;
-    var maxW = outerR - innerR;
-    var maxSize = size * 0.055;
-
-    ctx.font = "600 " + MEASURE_PX + "px Archivo, sans-serif";
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.textAlign = "right";
-    ctx.textBaseline = "middle";
-    ctx.fillStyle = "#FFFFFF";
-    for (var j = 0; j < n; j++) {
-      var lay = layoutLabel(entries[j].label, bounds[j + 1] - bounds[j], outerR, maxW, maxSize);
-      if (!(lay.size > 0.5)) continue;
-      ctx.save();
-      ctx.rotate((bounds[j] + bounds[j + 1]) / 2 - Math.PI / 2);
-      ctx.font = "600 " + lay.size.toFixed(2) + "px Archivo, sans-serif";
-      ctx.shadowColor = "rgba(0,0,0,.42)";
-      ctx.shadowBlur = Math.max(2, lay.size * 0.16);
-      ctx.shadowOffsetY = Math.max(1, lay.size * 0.05);
-      var lh = lay.size * LINE_EM;
-      var y = -((lay.lines.length - 1) / 2) * lh;
-      for (var k = 0; k < lay.lines.length; k++) {
-        ctx.fillText(lay.lines[k], outerR, y + k * lh);
-      }
-      ctx.restore();
-    }
-    ctx.restore();
-
-    /* Pegs sit on the boundaries so the flapper has something to hit. */
-    var pegs = n <= 60 ? n : 0;
-    for (var p = 0; p < pegs; p++) {
-      var pa = bounds[p] - Math.PI / 2;
-      var pr = R + rim / 2;
-      var px = cx + Math.cos(pa) * pr;
-      var py = cy + Math.sin(pa) * pr;
-      var pRad = Math.max(1.6, rim * 0.21);
-      ctx.beginPath();
-      ctx.arc(px, py, pRad, 0, TAU);
-      ctx.fillStyle = rimA;
-      ctx.fill();
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = rimC;
-      ctx.stroke();
-    }
-
-    /* Inner bevel under the hub cap. */
-    ctx.beginPath();
-    ctx.arc(cx, cy, hubR, 0, TAU);
-    ctx.fillStyle = css.getPropertyValue("--hub-face").trim() || "#FBF8F1";
-    ctx.fill();
+  function claimBoard() {
+    if (!boardFromUrl) return;
+    boardFromUrl = false;
+    for (var i = 0; i < wheels.length; i++) wheels[i].setHint("");
   }
 
   /* ---------- sound ---------- */
 
   var audio = null;
+  var lastClick = 0;
+
   function ac() {
-    if (!soundToggle.checked) return null;
+    if (!soundOn) return null;
     if (!audio) {
       var Ctx = window.AudioContext || window.webkitAudioContext;
       if (!Ctx) return null;
@@ -1292,33 +1207,46 @@
     return audio;
   }
 
+  function spinningCount() {
+    var n = 0;
+    for (var i = 0; i < wheels.length; i++) if (wheels[i].isSpinning()) n++;
+    return n;
+  }
+
+  /* Wheels turning together stack into a buzz: rate-limit clicks across
+     the board and scale every voice by how many are spinning. */
+  function voices() { return Math.max(1, Math.sqrt(spinningCount())); }
+
   function click() {
     var a = ac();
     if (!a) return;
-    var t = a.currentTime;
+    var now = a.currentTime;
+    if (now - lastClick < 0.016) return;
+    lastClick = now;
     var osc = a.createOscillator();
     var gain = a.createGain();
     osc.type = "triangle";
-    osc.frequency.setValueAtTime(1250, t);
-    osc.frequency.exponentialRampToValueAtTime(620, t + 0.03);
-    gain.gain.setValueAtTime(0.07, t);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.045);
+    osc.frequency.setValueAtTime(1250, now);
+    osc.frequency.exponentialRampToValueAtTime(620, now + 0.03);
+    gain.gain.setValueAtTime(0.07 / voices(), now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.045);
     osc.connect(gain).connect(a.destination);
-    osc.start(t);
-    osc.stop(t + 0.05);
+    osc.start(now);
+    osc.stop(now + 0.05);
   }
 
   function chime() {
     var a = ac();
     if (!a) return;
     var t = a.currentTime;
+    var peak = 0.16 / voices();
     [523.25, 659.25, 783.99, 1046.5].forEach(function (f, i) {
       var osc = a.createOscillator();
       var gain = a.createGain();
       osc.type = "sine";
       osc.frequency.setValueAtTime(f, t + i * 0.085);
       gain.gain.setValueAtTime(0.0001, t + i * 0.085);
-      gain.gain.exponentialRampToValueAtTime(0.16, t + i * 0.085 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(peak, t + i * 0.085 + 0.02);
       gain.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.085 + 0.5);
       osc.connect(gain).connect(a.destination);
       osc.start(t + i * 0.085);
@@ -1326,171 +1254,913 @@
     });
   }
 
-  /* ---------- spinning ---------- */
+  /* ---------- board geometry ---------- */
 
-  function setSpinning(on) {
-    spinning = on;
-    spinBtn.disabled = on || entries.length < 1;
-    spinTarget.disabled = on || entries.length < 1;
-    clearBtn.disabled = on;
-    againBtn.disabled = on;
-    removeBtn.disabled = on;
-    entriesEl.readOnly = on;
-    spinBtn.textContent = on ? "Spinning…" : "Spin the wheel";
+  function chromeHeight() {
+    var pg = getComputedStyle(pageEl);
+    var root = getComputedStyle(document.documentElement);
+    return parseFloat(root.paddingTop) + parseFloat(root.paddingBottom) +
+      parseFloat(pg.paddingTop) + parseFloat(pg.paddingBottom) +
+      mastheadEl.offsetHeight + parseFloat(getComputedStyle(mastheadEl).marginBottom) + 6;
   }
 
-  function spin() {
-    if (spinning) return;
-    syncEntries(false);
-    var n = entries.length;
-    if (!n) { resetVerdict(); draw(); return; }
+  var boardCols = 1;
 
-    setSpinning(true);
-    winnerIdx = -1;
-    verdictEl.classList.remove("is-won");
-    verdictLabel.textContent = "Spinning";
-    verdictName.className = "verdict-name is-idle";
-    verdictName.textContent = "…";
-    verdictActions.classList.add("is-idle");
-    draw();
+  function layoutBoard() {
+    var n = wheels.length;
+    var minCard = panelOpen ? 380 : 320;
+    /* One wheel keeps the page's narrow measure; a board wants the width. */
+    pageEl.style.maxWidth = n > 1 ? "2400px" : "";
+    var avail = boardEl.clientWidth || window.innerWidth;
+    var byWidth = Math.max(1, Math.floor((avail + GRID_GAP) / (minCard + GRID_GAP)));
+    /* Up to three read best in one row; past that, a squarish grid. */
+    var ideal = n <= 3 ? n : Math.ceil(Math.sqrt(n));
+    boardCols = Math.max(1, Math.min(ideal, byWidth));
+    boardEl.style.setProperty("--cols", boardCols);
+    boardEl.classList.toggle("is-multi", n > 1);
+  }
 
-    var reduced = reduceMotion.matches;
-    var r = Math.random() * totalWeight;
-    var acc = 0, winner = n - 1;
-    for (var i = 0; i < n; i++) {
-      acc += entries[i].weight;
-      if (r < acc) { winner = i; break; }
+  function boardRows() {
+    return Math.max(1, Math.ceil(wheels.length / boardCols));
+  }
+
+  function relayout() {
+    layoutBoard();
+    var i;
+    for (i = 0; i < wheels.length; i++) wheels[i].fit();
+    for (i = 0; i < wheels.length; i++) wheels[i].resize();
+  }
+
+  /* ---------- triggers ---------- */
+
+  function wheelByName(name) {
+    var want = String(name).trim().toLowerCase();
+    if (!want) return null;
+    for (var i = 0; i < wheels.length; i++) {
+      if (wheels[i].displayName().toLowerCase() === want) return wheels[i];
     }
-    /* Land inside the slice, never on a peg. */
-    var span = bounds[winner + 1] - bounds[winner];
-    var aim = bounds[winner] + (0.18 + 0.64 * Math.random()) * span;
-    var base = ((-aim) % TAU + TAU) % TAU;
-    var turns = reduced ? 0 : 4 + Math.floor(Math.random() * 4);
-    var target = base;
-    while (target < theta + turns * TAU + 0.0001) target += TAU;
+    return null;
+  }
 
-    var start = theta;
-    var delta = target - start;
-    var dur = reduced ? 650 : 4400 + Math.random() * 1600;
-    var t0 = performance.now();
-    var lastSlice = sliceAt(start);
+  /* "Coffee!Snacks" spins the wheel named Snacks when Coffee wins. The
+     target has to name a real wheel, so "Ready! Set" stays a plain
+     label and nothing needs escaping. */
+  function splitTrigger(label) {
+    var at = label.lastIndexOf("!");
+    if (at < 1) return null;
+    var target = label.slice(at + 1).trim();
+    var head = label.slice(0, at).trim();
+    if (!target || !head || !wheelByName(target)) return null;
+    return { label: head, target: target };
+  }
 
-    function frame(now) {
-      var t = Math.min(1, (now - t0) / dur);
-      var eased = 1 - Math.pow(1 - t, 4.2);
-      theta = start + delta * eased;
+  /* The roster decides which triggers resolve, so a change to it makes
+     every wheel re-read its list. */
+  function resyncAll() {
+    for (var i = 0; i < wheels.length; i++) wheels[i].resync();
+  }
 
-      var slice = sliceAt(theta);
-      if (slice !== lastSlice) {
-        lastSlice = slice;
-        if (!reduced) { click(); flap = -11; }
+  /* ---------- a wheel ---------- */
+
+  function createWheel(init) {
+    var card = tpl.content.firstElementChild.cloneNode(true);
+    var uid = "w" + (++wheelSeq);
+    function q(sel) { return card.querySelector(sel); }
+
+    var canvas = q(".wheel-canvas");
+    var ctx = canvas.getContext("2d");
+    var wrap = q(".wheel-wrap");
+    var pointerEl = q(".pointer");
+    var spinTarget = q(".spin-target");
+    var stageEl = q(".stage");
+    var entriesEl = q(".entries");
+    var hintEl = q(".hint");
+    var countEl = q(".count");
+    var oddsEl = q(".odds");
+    var verdictEl = q(".verdict");
+    var verdictLabel = q(".verdict-label");
+    var verdictName = q(".verdict-name");
+    var verdictActions = q(".verdict-actions");
+    var spinBtn = q(".act.spin");
+    var againBtn = q(".act.again");
+    var removeBtn = q(".act.remove");
+    var clearBtn = q(".act.clear");
+    var historyEl = q(".history");
+    var historyEmpty = q(".history-empty");
+    var clearHistoryBtn = q(".clear-history");
+    var helpBtn = q(".info-btn");
+    var helpPop = q(".help-pop");
+    var nameEl = q(".card-name");
+    var headEl = q(".card-head");
+    var removeWheelBtn = q(".card-remove");
+
+    entriesEl.id = uid + "-entries";
+    q(".entries-label").htmlFor = entriesEl.id;
+    hintEl.id = uid + "-hint";
+    entriesEl.setAttribute("aria-describedby", hintEl.id);
+    helpPop.id = uid + "-help";
+    helpBtn.setAttribute("aria-controls", helpPop.id);
+
+    var entries = [];
+    var history = (init && Array.isArray(init.history)) ? init.history.slice(0, 40) : [];
+    var theta = 0;
+    var flap = 0;
+    var spinning = false;
+    var winnerIdx = -1;
+    var size = 0;
+    var totalWeight = 0;
+    var bounds = [0];
+    var idleOdds = "";
+
+    entriesEl.value = (init && typeof init.text === "string") ? init.text : "";
+    nameEl.value = (init && typeof init.name === "string") ? cleanName(init.name) : "";
+
+    /* ---------- entries ---------- */
+
+    /* "2#Blue" — a leading number and # set the weight; otherwise 1. */
+    var WEIGHT_RE = /^(\d*\.?\d+)\s*#\s*(.+)$/;
+
+    function readEntries() {
+      var lines = entriesEl.value.split("\n");
+      var out = [];
+      for (var i = 0; i < lines.length && out.length < MAX_ENTRIES; i++) {
+        var s = lines[i].trim();
+        if (!s) continue;
+        var m = WEIGHT_RE.exec(s);
+        var weight = m ? parseFloat(m[1]) : 1;
+        /* A zero weight is a slice nobody can land on — leave it off. */
+        if (!(weight > 0)) continue;
+        var label = m ? m[2].trim() : s;
+        var trig = splitTrigger(label);
+        out.push({
+          label: trig ? trig.label : label,
+          weight: weight,
+          line: i,
+          trigger: trig ? trig.target : ""
+        });
       }
-      flap += (0 - flap) * 0.28;
+      return out;
+    }
 
-      canvas.style.transform = "rotate(" + theta + "rad)";
-      pointerEl.style.transform = reduced ? "" : "rotate(" + flap.toFixed(2) + "deg)";
+    function rawLines() {
+      var lines = entriesEl.value.split("\n");
+      var out = [];
+      for (var i = 0; i < lines.length; i++) {
+        var s = lines[i].trim();
+        if (s) out.push(s);
+      }
+      return out;
+    }
 
-      if (t < 1) { requestAnimationFrame(frame); }
-      else {
-        theta = ((target % TAU) + TAU) % TAU;
+    function computeBounds() {
+      var n = entries.length, i;
+      totalWeight = 0;
+      for (i = 0; i < n; i++) totalWeight += entries[i].weight;
+      bounds = [0];
+      var acc = 0;
+      for (i = 0; i < n; i++) {
+        acc += entries[i].weight;
+        bounds.push((acc / totalWeight) * TAU);
+      }
+      if (n) bounds[n] = TAU;
+    }
+
+    function sliceAt(rot) {
+      var n = entries.length;
+      if (!n) return -1;
+      var a = ((-rot) % TAU + TAU) % TAU;
+      var lo = 0, hi = n - 1;
+      while (lo < hi) {
+        var mid = (lo + hi + 1) >> 1;
+        if (bounds[mid] <= a) lo = mid; else hi = mid - 1;
+      }
+      return lo;
+    }
+
+    function trimNum(v) {
+      return String(Math.round(v * 1000) / 1000);
+    }
+
+    function colorFor(i, n) {
+      var c = i % PALETTE.length;
+      if (n > 2 && i === n - 1 && c === 0) c = 5;
+      return PALETTE[c];
+    }
+
+    function syncEntries(redraw) {
+      entries = readEntries();
+      computeBounds();
+      var n = entries.length, weighted = false;
+      for (var i = 0; i < n; i++) {
+        if (entries[i].weight !== 1) { weighted = true; break; }
+      }
+      countEl.textContent = n === 1 ? "1 slice" : n + " slices";
+      idleOdds = !n ? ""
+        : weighted
+          ? n + (n === 1 ? " slice" : " slices") + " · " + trimNum(totalWeight) + " total weight"
+          : (360 / n).toFixed(1) + "° per slice · 1 in " + n + " odds";
+      if (winnerIdx < 0) oddsEl.textContent = idleOdds;
+      spinBtn.disabled = spinning || n < 1;
+      spinTarget.disabled = spinning || n < 1;
+      syncSpinAll();
+      if (redraw !== false) draw();
+      save();
+    }
+
+    function resetVerdict() {
+      winnerIdx = -1;
+      verdictEl.classList.remove("is-won");
+      verdictLabel.textContent = "Ready";
+      verdictName.className = "verdict-name is-idle";
+      verdictName.textContent = entries.length
+        ? "Tap the wheel to pick a winner."
+        : "Add a few entries to build the wheel.";
+      verdictActions.classList.add("is-idle");
+      oddsEl.textContent = idleOdds;
+      fit();
+    }
+
+    /* ---------- label fitting ---------- */
+
+    var MEASURE_PX = 100;
+    var LINE_EM = 1.14;
+    var SAFETY = 0.9;
+
+    function unitWidth(s) {
+      return ctx.measureText(s).width / MEASURE_PX;
+    }
+
+    function sizeForLines(lines, seg, outerR, maxW, maxSize) {
+      var uMax = 0;
+      for (var i = 0; i < lines.length; i++) {
+        var u = unitWidth(lines[i]);
+        if (u > uMax) uMax = u;
+      }
+      if (uMax <= 0) return 0;
+      var hEm = lines.length === 1 ? 1 : lines.length * LINE_EM;
+      var byHeight = (seg * outerR * SAFETY) / (hEm + seg * uMax);
+      var byWidth = maxW / uMax;
+      return Math.min(byHeight, byWidth, maxSize);
+    }
+
+    function splitInto(words, n) {
+      if (words.length < n) return null;
+      if (n === 1) return [words.join(" ")];
+      var best = null, bestW = Infinity, i, j;
+      if (n === 2) {
+        for (i = 1; i < words.length; i++) {
+          var a = words.slice(0, i).join(" "), b = words.slice(i).join(" ");
+          var w = Math.max(unitWidth(a), unitWidth(b));
+          if (w < bestW) { bestW = w; best = [a, b]; }
+        }
+        return best;
+      }
+      for (i = 1; i < words.length - 1; i++) {
+        for (j = i + 1; j < words.length; j++) {
+          var p = words.slice(0, i).join(" ");
+          var qq = words.slice(i, j).join(" ");
+          var r = words.slice(j).join(" ");
+          var m = Math.max(unitWidth(p), unitWidth(qq), unitWidth(r));
+          if (m < bestW) { bestW = m; best = [p, qq, r]; }
+        }
+      }
+      return best;
+    }
+
+    function layoutLabel(text, seg, outerR, maxW, maxSize) {
+      var words = text.split(/\s+/).filter(Boolean);
+      var best = { lines: [text], size: sizeForLines([text], seg, outerR, maxW, maxSize) };
+      var maxLines = words.length > 10 ? 2 : 3;
+      for (var n = 2; n <= maxLines; n++) {
+        var lines = splitInto(words, n);
+        if (!lines) break;
+        var s = sizeForLines(lines, seg, outerR, maxW, maxSize);
+        /* Only spend an extra line if it buys a meaningfully bigger face. */
+        if (s > best.size * 1.08) best = { lines: lines, size: s };
+      }
+      return best;
+    }
+
+    /* ---------- sizing ---------- */
+
+    function fit() {
+      var st = getComputedStyle(stageEl);
+      var isRow = st.flexDirection === "row";
+
+      var w = stageEl.clientWidth;
+      if (isRow) w -= verdictEl.offsetWidth + (parseFloat(st.columnGap) || 28);
+
+      /* Card chrome that isn't the wheel: title bar and frame. */
+      var cs = getComputedStyle(card);
+      var hs = getComputedStyle(headEl);
+      var overhead = headEl.offsetHeight + (parseFloat(hs.marginBottom) || 0) +
+        parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+
+      var rows = boardRows();
+      var h = (window.innerHeight - chromeHeight() - (rows - 1) * GRID_GAP) / rows - overhead;
+      if (!isRow) h -= verdictEl.offsetHeight + (parseFloat(st.rowGap) || 20);
+      /* Rows share the viewport, but never shrink past readable — the page
+         can scroll instead. */
+      if (wheels.length > 1) h = Math.max(h, 300);
+
+      var px = Math.max(260, Math.min(w, h));
+      var cur = parseFloat(stageEl.style.getPropertyValue("--wheel-w")) || 0;
+      if (Math.abs(px - cur) > 1) {
+        stageEl.style.setProperty("--wheel-w", px.toFixed(1) + "px");
+      }
+    }
+
+    function resize() {
+      var w = Math.round(wrap.clientWidth);
+      if (!w) return;
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      size = w;
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(w * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      draw();
+    }
+
+    /* ---------- drawing ---------- */
+
+    function draw() {
+      if (!size) return;
+      var n = entries.length;
+      var cx = size / 2, cy = size / 2;
+      var rim = Math.max(8, size * 0.042);
+      var R = size / 2 - rim - 2;
+      var hubR = size * 0.115;
+      var css = getComputedStyle(document.documentElement);
+      var rimA = css.getPropertyValue("--rim-a").trim() || "#F0DCA8";
+      var rimB = css.getPropertyValue("--rim-b").trim() || "#A9721B";
+      var rimC = css.getPropertyValue("--rim-c").trim() || "#6E4910";
+
+      ctx.clearRect(0, 0, size, size);
+
+      /* Rim: a brass band carrying one peg per slice boundary. */
+      var band = ctx.createLinearGradient(0, 0, size, size);
+      band.addColorStop(0, rimA);
+      band.addColorStop(0.42, rimB);
+      band.addColorStop(1, rimC);
+      ctx.beginPath();
+      ctx.arc(cx, cy, R + rim / 2, 0, TAU);
+      ctx.lineWidth = rim;
+      ctx.strokeStyle = band;
+      ctx.stroke();
+
+      if (!n) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, R, 0, TAU);
+        ctx.fillStyle = css.getPropertyValue("--surface-2").trim() || "#F2F0F8";
+        ctx.fill();
+        ctx.setLineDash([7, 8]);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = css.getPropertyValue("--line").trim() || "#D5D1E2";
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = css.getPropertyValue("--ink-soft").trim() || "#5C5670";
+        ctx.font = "500 " + Math.max(12, size * 0.036) + "px Archivo, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        return;
+      }
+
+      for (var i = 0; i < n; i++) {
+        var a0 = bounds[i] - Math.PI / 2;
+        var a1 = bounds[i + 1] - Math.PI / 2;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, R, a0, a1);
+        ctx.closePath();
+        ctx.fillStyle = colorFor(i, n);
+        ctx.fill();
+        if (n <= 60) {
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = "rgba(0,0,0,.18)";
+          ctx.stroke();
+        }
+      }
+
+      /* The winning slice gets lifted rather than announced twice. */
+      if (winnerIdx >= 0 && winnerIdx < n) {
+        var w0 = bounds[winnerIdx] - Math.PI / 2;
+        var w1 = bounds[winnerIdx + 1] - Math.PI / 2;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, R, w0, w1);
+        ctx.closePath();
+        ctx.fillStyle = "rgba(255,255,255,.26)";
+        ctx.fill();
+        ctx.lineWidth = Math.max(2, size * 0.008);
+        ctx.strokeStyle = "rgba(255,255,255,.9)";
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      var outerR = R - size * 0.035;
+      var innerR = hubR + size * 0.025;
+      var maxW = outerR - innerR;
+      var maxSize = size * 0.055;
+
+      ctx.font = "600 " + MEASURE_PX + "px Archivo, sans-serif";
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "#FFFFFF";
+      for (var j = 0; j < n; j++) {
+        var lay = layoutLabel(entries[j].label, bounds[j + 1] - bounds[j], outerR, maxW, maxSize);
+        if (!(lay.size > 0.5)) continue;
+        ctx.save();
+        ctx.rotate((bounds[j] + bounds[j + 1]) / 2 - Math.PI / 2);
+        ctx.font = "600 " + lay.size.toFixed(2) + "px Archivo, sans-serif";
+        ctx.shadowColor = "rgba(0,0,0,.42)";
+        ctx.shadowBlur = Math.max(2, lay.size * 0.16);
+        ctx.shadowOffsetY = Math.max(1, lay.size * 0.05);
+        var lh = lay.size * LINE_EM;
+        var y = -((lay.lines.length - 1) / 2) * lh;
+        for (var k = 0; k < lay.lines.length; k++) {
+          ctx.fillText(lay.lines[k], outerR, y + k * lh);
+        }
+        ctx.restore();
+      }
+      ctx.restore();
+
+      /* Pegs sit on the boundaries so the flapper has something to hit. */
+      var pegs = n <= 60 ? n : 0;
+      for (var p = 0; p < pegs; p++) {
+        var pa = bounds[p] - Math.PI / 2;
+        var pr = R + rim / 2;
+        var px = cx + Math.cos(pa) * pr;
+        var py = cy + Math.sin(pa) * pr;
+        var pRad = Math.max(1.6, rim * 0.21);
+        ctx.beginPath();
+        ctx.arc(px, py, pRad, 0, TAU);
+        ctx.fillStyle = rimA;
+        ctx.fill();
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = rimC;
+        ctx.stroke();
+      }
+
+      /* Inner bevel under the hub cap. */
+      ctx.beginPath();
+      ctx.arc(cx, cy, hubR, 0, TAU);
+      ctx.fillStyle = css.getPropertyValue("--hub-face").trim() || "#FBF8F1";
+      ctx.fill();
+    }
+
+    /* ---------- spinning ---------- */
+
+    function setSpinning(on) {
+      spinning = on;
+      spinBtn.disabled = on || entries.length < 1;
+      spinTarget.disabled = on || entries.length < 1;
+      clearBtn.disabled = on;
+      againBtn.disabled = on;
+      removeBtn.disabled = on;
+      removeWheelBtn.disabled = on;
+      entriesEl.readOnly = on;
+      spinBtn.textContent = on ? "Spinning…" : "Spin the wheel";
+      syncSpinAll();
+    }
+
+    /* The wheels this one spin has already set going. Each joins once, so
+       "A!B" and "B!A" cannot loop. */
+    function spin() { startSpin([]); }
+
+    function startSpin(chain) {
+      if (spinning || chain.indexOf(api) >= 0) return;
+      var trail = chain.concat([api]);
+      syncEntries(false);
+      var n = entries.length;
+      if (!n) { resetVerdict(); draw(); return; }
+
+      setSpinning(true);
+      winnerIdx = -1;
+      verdictEl.classList.remove("is-won");
+      verdictLabel.textContent = "Spinning";
+      verdictName.className = "verdict-name is-idle";
+      verdictName.textContent = "…";
+      verdictActions.classList.add("is-idle");
+      draw();
+
+      var reduced = reduceMotion.matches;
+      var r = Math.random() * totalWeight;
+      var acc = 0, winner = n - 1;
+      for (var i = 0; i < n; i++) {
+        acc += entries[i].weight;
+        if (r < acc) { winner = i; break; }
+      }
+      /* Land inside the slice, never on a peg. */
+      var span = bounds[winner + 1] - bounds[winner];
+      var aim = bounds[winner] + (0.18 + 0.64 * Math.random()) * span;
+      var base = ((-aim) % TAU + TAU) % TAU;
+      var turns = reduced ? 0 : 4 + Math.floor(Math.random() * 4);
+      var target = base;
+      while (target < theta + turns * TAU + 0.0001) target += TAU;
+
+      var start = theta;
+      var delta = target - start;
+      var dur = reduced ? 650 : 4400 + Math.random() * 1600;
+      var t0 = performance.now();
+      var lastSlice = sliceAt(start);
+
+      function frame(now) {
+        var t = Math.min(1, (now - t0) / dur);
+        var eased = 1 - Math.pow(1 - t, 4.2);
+        theta = start + delta * eased;
+
+        var slice = sliceAt(theta);
+        if (slice !== lastSlice) {
+          lastSlice = slice;
+          if (!reduced) { click(); flap = -11; }
+        }
+        flap += (0 - flap) * 0.28;
+
         canvas.style.transform = "rotate(" + theta + "rad)";
-        pointerEl.style.transform = "";
-        finish(winner);
+        pointerEl.style.transform = reduced ? "" : "rotate(" + flap.toFixed(2) + "deg)";
+
+        if (t < 1) { requestAnimationFrame(frame); }
+        else {
+          theta = ((target % TAU) + TAU) % TAU;
+          canvas.style.transform = "rotate(" + theta + "rad)";
+          pointerEl.style.transform = "";
+          finish(winner, trail);
+        }
+      }
+      requestAnimationFrame(frame);
+    }
+
+    function finish(idx, trail) {
+      /* Before setSpinning drops this wheel from the count, or a lone
+         finisher in a crowd blares. */
+      chime();
+      setSpinning(false);
+      winnerIdx = idx;
+      draw();
+
+      var entry = entries[idx];
+      var name = entry.label;
+      var share = entry.weight / totalWeight;
+      verdictEl.classList.add("is-won");
+      verdictLabel.textContent = "Winner";
+      verdictName.className = "verdict-name";
+      verdictName.textContent = name;
+      verdictActions.classList.remove("is-idle");
+
+      var odds = (share * 100).toFixed(1) + "% chance · " +
+        (share * 360).toFixed(1) + "° slice";
+      var next = entry.trigger ? wheelByName(entry.trigger) : null;
+      if (next && trail.indexOf(next) < 0) {
+        odds += " · spins " + next.displayName();
+        /* A beat to read the winner first; re-resolve, the board may have
+           changed while we waited. */
+        var target = entry.trigger;
+        setTimeout(function () {
+          var w = wheelByName(target);
+          if (!w || trail.indexOf(w) >= 0) return;
+          setActive(w);
+          w.spinFrom(trail);
+        }, reduceMotion.matches ? 0 : 600);
+      }
+      oddsEl.textContent = odds;
+      fit();
+
+      history.unshift(name);
+      if (history.length > 40) history.pop();
+      renderHistory();
+      save();
+    }
+
+    function renderHistory() {
+      historyEl.textContent = "";
+      historyEmpty.hidden = history.length > 0;
+      clearHistoryBtn.hidden = history.length === 0;
+      for (var i = 0; i < history.length; i++) {
+        var li = document.createElement("li");
+        var n = document.createElement("span");
+        n.className = "n";
+        n.textContent = String(history.length - i).padStart(2, "0");
+        var who = document.createElement("span");
+        who.className = "who";
+        who.textContent = history[i];
+        li.appendChild(n);
+        li.appendChild(who);
+        historyEl.appendChild(li);
       }
     }
-    requestAnimationFrame(frame);
-  }
 
-  function finish(idx) {
-    setSpinning(false);
-    winnerIdx = idx;
-    draw();
-    chime();
+    /* ---------- events ---------- */
 
-    var name = entries[idx].label;
-    var share = entries[idx].weight / totalWeight;
-    verdictEl.classList.add("is-won");
-    verdictLabel.textContent = "Winner";
-    verdictName.className = "verdict-name";
-    verdictName.textContent = name;
-    verdictActions.classList.remove("is-idle");
-    oddsEl.textContent = (share * 100).toFixed(1) + "% chance · " +
-      (share * 360).toFixed(1) + "° slice";
-    fitWheel();
+    function activate() { setActive(api); }
 
-    history.unshift(name);
-    if (history.length > 40) history.pop();
-    renderHistory();
-    save();
-  }
+    card.addEventListener("focusin", activate);
+    card.addEventListener("pointerdown", activate);
 
-  function renderHistory() {
-    historyEl.textContent = "";
-    historyEmpty.hidden = history.length > 0;
-    clearHistoryBtn.hidden = history.length === 0;
-    for (var i = 0; i < history.length; i++) {
-      var li = document.createElement("li");
-      var n = document.createElement("span");
-      n.className = "n";
-      n.textContent = String(history.length - i).padStart(2, "0");
-      var who = document.createElement("span");
-      who.className = "who";
-      who.textContent = history[i];
-      li.appendChild(n);
-      li.appendChild(who);
-      historyEl.appendChild(li);
+    spinTarget.addEventListener("click", spin);
+    spinBtn.addEventListener("click", spin);
+    againBtn.addEventListener("click", spin);
+
+    removeBtn.addEventListener("click", function () {
+      if (spinning || winnerIdx < 0) return;
+      var entry = entries[winnerIdx];
+      if (!entry) return;
+      var lines = entriesEl.value.split("\n");
+      if (entry.line < lines.length) lines.splice(entry.line, 1);
+      entriesEl.value = lines.join("\n").replace(/^\n+/, "");
+      claimBoard();
+      resetVerdict();
+      syncEntries();
+      entriesEl.focus();
+    });
+
+    clearBtn.addEventListener("click", function () {
+      if (spinning) return;
+      entriesEl.value = "";
+      claimBoard();
+      setHint("");
+      resetVerdict();
+      syncEntries();
+      entriesEl.focus();
+    });
+
+    clearHistoryBtn.addEventListener("click", function () {
+      history = [];
+      renderHistory();
+      save();
+    });
+
+    entriesEl.addEventListener("input", function () {
+      claimBoard();
+      setHint("");
+      if (winnerIdx >= 0) resetVerdict();
+      syncEntries();
+    });
+
+    removeWheelBtn.addEventListener("click", function () {
+      if (spinning) return;
+      removeWheel(api);
+    });
+
+    /* The placeholder carries the "Wheel 3" default, so clearing the
+       field just restores it. */
+    function displayName() {
+      return nameEl.value.trim() || nameEl.placeholder;
     }
+
+    function syncName() {
+      removeWheelBtn.setAttribute("aria-label", "Remove " + displayName());
+    }
+
+    nameEl.addEventListener("input", function () {
+      claimBoard();
+      syncName();
+      save();
+    });
+
+    /* On settle, not per keystroke: resyncAll redraws every wheel. */
+    nameEl.addEventListener("change", function () {
+      nameEl.value = cleanName(nameEl.value);
+      syncName();
+      resyncAll();
+    });
+
+    nameEl.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" || e.key === "Escape") {
+        nameEl.blur();
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    });
+
+    helpBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      setHelp(helpPop.hidden);
+    });
+
+    function setHelp(open) {
+      helpPop.hidden = !open;
+      helpBtn.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+
+    function setHint(msg) {
+      hintEl.textContent = msg || "";
+      hintEl.hidden = !msg;
+    }
+
+    var ro = null;
+    if (window.ResizeObserver) {
+      ro = new ResizeObserver(resize);
+      ro.observe(wrap);
+    }
+
+    var api = {
+      el: card,
+      spin: spin,
+      spinFrom: startSpin,
+      displayName: displayName,
+      resync: function () { syncEntries(true); },
+      draw: draw,
+      fit: fit,
+      resize: resize,
+      rawLines: rawLines,
+      setHint: setHint,
+      isSpinning: function () { return spinning; },
+      canSpin: function () { return !spinning && entries.length > 0; },
+      init: function () { syncEntries(false); resetVerdict(); syncName(); },
+      getName: function () { return cleanName(nameEl.value); },
+      serialize: function () {
+        return {
+          text: entriesEl.value,
+          name: cleanName(nameEl.value),
+          history: history.slice(0, 40)
+        };
+      },
+      setOrdinal: function (i) {
+        nameEl.placeholder = "Wheel " + i;
+        nameEl.setAttribute("aria-label", "Name of wheel " + i);
+        syncName();
+      },
+      focusEntries: function () { entriesEl.focus(); },
+      destroy: function () {
+        if (ro) ro.disconnect();
+        if (card.parentNode) card.parentNode.removeChild(card);
+      }
+    };
+
+    /* The rest waits for api.init(), once addWheel has mounted the card. */
+    renderHistory();
+    return api;
   }
 
-  /* ---------- events ---------- */
+  /* ---------- board management ---------- */
 
-  spinTarget.addEventListener("click", spin);
-  spinBtn.addEventListener("click", spin);
-  againBtn.addEventListener("click", spin);
+  function setActive(wheel) {
+    if (activeWheel === wheel) return;
+    if (activeWheel) activeWheel.el.classList.remove("is-active");
+    activeWheel = wheel;
+    if (activeWheel) activeWheel.el.classList.add("is-active");
+  }
 
-  removeBtn.addEventListener("click", function () {
-    if (spinning || winnerIdx < 0) return;
-    var entry = entries[winnerIdx];
-    if (!entry) return;
-    var lines = entriesEl.value.split("\n");
-    if (entry.line < lines.length) lines.splice(entry.line, 1);
-    entriesEl.value = lines.join("\n").replace(/^\n+/, "");
-    claimList();
-    resetVerdict();
-    syncEntries();
-    entriesEl.focus();
+  function renumber() {
+    for (var i = 0; i < wheels.length; i++) wheels[i].setOrdinal(i + 1);
+  }
+
+  function syncChrome() {
+    var n = wheels.length;
+    addWheelBtn.disabled = n >= MAX_WHEELS;
+    spinAllBtn.hidden = n < 2;
+    panelToggleLabel.textContent = (panelOpen ? "Hide list" : "Show list") + (n > 1 ? "s" : "");
+    syncSpinAll();
+  }
+
+  function syncSpinAll() {
+    if (spinAllBtn.hidden) return;
+    var any = false;
+    for (var i = 0; i < wheels.length; i++) {
+      if (wheels[i].canSpin()) { any = true; break; }
+    }
+    spinAllBtn.disabled = !any;
+  }
+
+  function addWheel(init, quiet) {
+    if (wheels.length >= MAX_WHEELS) return null;
+    var wheel = createWheel(init);
+    wheels.push(wheel);
+    boardEl.appendChild(wheel.el);
+    wheel.init();
+    renumber();
+    resyncAll();
+    syncChrome();
+    if (!activeWheel) setActive(wheel);
+    if (!quiet) {
+      setActive(wheel);
+      relayout();
+      save();
+      wheel.focusEntries();
+      wheel.el.scrollIntoView({ block: "nearest", behavior: reduceMotion.matches ? "auto" : "smooth" });
+    }
+    return wheel;
+  }
+
+  function removeWheel(wheel) {
+    var i = wheels.indexOf(wheel);
+    if (i < 0) return;
+    /* Never empty: removing the last one leaves a blank wheel to type into. */
+    claimBoard();
+    wheels.splice(i, 1);
+    wheel.destroy();
+    if (activeWheel === wheel) {
+      activeWheel = null;
+      setActive(wheels[Math.min(i, wheels.length - 1)] || null);
+    }
+    if (!wheels.length) addWheel({ text: "", name: "", history: [] }, true);
+    renumber();
+    resyncAll();
+    syncChrome();
+    relayout();
+    save();
+  }
+
+  function setPanel(open) {
+    panelOpen = open;
+    boardEl.classList.toggle("is-collapsed", !open);
+    panelToggle.setAttribute("aria-expanded", open ? "true" : "false");
+    syncChrome();
+    requestAnimationFrame(relayout);
+  }
+
+  function setSound(on) {
+    soundOn = on;
+    soundBtn.setAttribute("aria-pressed", on ? "true" : "false");
+  }
+
+  /* ---------- board title ---------- */
+
+  /* The wordmark is the board's name. Unnamed it stays the app title
+     with its tagline; naming the board replaces both. */
+  function renderTitle() {
+    titleText.textContent = "";
+    if (boardTitle) {
+      titleText.appendChild(document.createTextNode(boardTitle));
+    } else {
+      var em = document.createElement("em");
+      em.textContent = "Win";
+      titleText.appendChild(document.createTextNode("Spin to "));
+      titleText.appendChild(em);
+    }
+    document.title = boardTitle || "Spin to Win";
+    taglineEl.hidden = !!boardTitle;
+  }
+
+  var titleEditing = false;
+
+  function openTitle() {
+    titleInput.value = boardTitle;
+    titleEditing = true;
+    titleBtn.hidden = true;
+    titleInput.hidden = false;
+    titleInput.focus();
+    titleInput.select();
+  }
+
+  /* Hiding the input fires blur, so the guard stops that undoing Escape. */
+  function closeTitle(commit, refocus) {
+    if (!titleEditing) return;
+    titleEditing = false;
+    if (commit) {
+      var next = cleanName(titleInput.value);
+      if (next !== boardTitle) {
+        boardTitle = next;
+        claimBoard();
+        renderTitle();
+        /* The tagline's height was part of the wheels' budget. */
+        relayout();
+        save();
+      }
+    }
+    titleInput.hidden = true;
+    titleBtn.hidden = false;
+    if (refocus) titleBtn.focus();
+  }
+
+  titleBtn.addEventListener("click", openTitle);
+  titleInput.addEventListener("blur", function () { closeTitle(true, false); });
+  titleInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") { closeTitle(true, true); e.preventDefault(); e.stopPropagation(); }
+    else if (e.key === "Escape") { closeTitle(false, true); e.preventDefault(); e.stopPropagation(); }
   });
 
-  clearBtn.addEventListener("click", function () {
-    if (spinning) return;
-    entriesEl.value = "";
-    claimList();
-    sampleHint.hidden = true;
-    resetVerdict();
-    syncEntries();
-    entriesEl.focus();
+  /* ---------- header ---------- */
+
+  addWheelBtn.addEventListener("click", function () {
+    claimBoard();
+    var wheel = addWheel({ text: "", name: "", history: [] });
+    if (wheel) wheel.setHint("Empty wheel — type some entries.");
   });
 
-  clearHistoryBtn.addEventListener("click", function () {
-    history = [];
-    renderHistory();
+  spinAllBtn.addEventListener("click", function () {
+    for (var i = 0; i < wheels.length; i++) wheels[i].spin();
+  });
+
+  panelToggle.addEventListener("click", function () {
+    setPanel(!panelOpen);
+    storedPanel = panelOpen;
     save();
   });
 
-  entriesEl.addEventListener("input", function () {
-    claimList();
-    sampleHint.hidden = true;
-    if (winnerIdx >= 0) resetVerdict();
-    syncEntries();
+  soundBtn.addEventListener("click", function () {
+    setSound(!soundOn);
+    save();
   });
 
-  var copyBtn = document.getElementById("copyBtn");
   var copyTimer = 0;
-
   function flashCopy(msg) {
-    copyBtn.textContent = msg;
+    copyLabel.textContent = msg;
     clearTimeout(copyTimer);
-    copyTimer = setTimeout(function () { copyBtn.textContent = "Copy link"; }, 1800);
+    copyTimer = setTimeout(function () { copyLabel.textContent = "Copy link"; }, 1800);
   }
 
   function copyFallback(text) {
@@ -1518,67 +2188,110 @@
     }
   });
 
-  soundToggle.addEventListener("change", save);
+  /* ---------- global keys and popovers ---------- */
 
-  var helpBtn = document.getElementById("weightHelpBtn");
-  var helpPop = document.getElementById("weightHelp");
-
-  function setHelp(open) {
-    helpPop.hidden = !open;
-    helpBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  function closeHelps(keep) {
+    var pops = document.querySelectorAll(".help-pop:not([hidden])");
+    for (var i = 0; i < pops.length; i++) {
+      if (keep && pops[i].contains(keep)) continue;
+      pops[i].hidden = true;
+      var btn = pops[i].parentNode.querySelector(".info-btn");
+      if (btn) btn.setAttribute("aria-expanded", "false");
+    }
   }
 
-  helpBtn.addEventListener("click", function (e) {
-    e.stopPropagation();
-    setHelp(helpPop.hidden);
-  });
-
   document.addEventListener("click", function (e) {
-    if (!helpPop.hidden && !helpPop.contains(e.target)) setHelp(false);
+    closeHelps(e.target);
   });
 
   document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape" && !helpPop.hidden) {
-      setHelp(false);
-      helpBtn.focus();
+    if (e.key === "Escape" && document.querySelector(".help-pop:not([hidden])")) {
+      closeHelps();
+      return;
     }
-    if (e.code === "Space" && document.activeElement !== entriesEl) {
-      spin();
-      e.preventDefault();
+    if (e.code === "Space") {
+      var el = document.activeElement;
+      /* Space belongs to whatever is focused if that thing uses it. */
+      if (el && (el.tagName === "TEXTAREA" || el.tagName === "INPUT" ||
+                 el.tagName === "BUTTON" || el.isContentEditable)) return;
+      if (activeWheel) {
+        activeWheel.spin();
+        e.preventDefault();
+      }
     }
   });
 
-  function setPanel(open) {
-    panelOpen = open;
-    layoutEl.classList.toggle("is-collapsed", !open);
-    panelToggle.setAttribute("aria-expanded", open ? "true" : "false");
-    panelToggleLabel.textContent = open ? "Hide list" : "Show list";
-    requestAnimationFrame(function () { fitWheel(); resize(); });
-  }
-
-  panelToggle.addEventListener("click", function () {
-    setPanel(!panelOpen);
-    save();
-  });
-
-  window.addEventListener("resize", fitWheel);
-  if (window.ResizeObserver) {
-    new ResizeObserver(resize).observe(wrap);
-  } else {
-    window.addEventListener("resize", resize);
-  }
+  window.addEventListener("resize", relayout);
   if (document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(function () { fitWheel(); draw(); });
+    document.fonts.ready.then(function () {
+      for (var i = 0; i < wheels.length; i++) { wheels[i].fit(); wheels[i].draw(); }
+    });
   }
 
   /* ---------- boot ---------- */
 
-  load();
-  setPanel(panelOpen);
-  syncEntries(false);
-  resetVerdict();
-  renderHistory();
-  fitWheel();
-  resize();
+  (function boot() {
+    shadow = loadState();
+    if (shadow && typeof shadow.sound === "boolean") soundOn = shadow.sound;
+    if (shadow && typeof shadow.panel === "boolean") panelOpen = shadow.panel;
+    storedPanel = panelOpen;
+    if (shadow && typeof shadow.title === "string") boardTitle = cleanName(shadow.title);
+
+    var shared = boardFromLink();
+    var i, init = [];
+
+    if (shared) {
+      boardFromUrl = true;
+      /* A shared board opens as a board, not as a page of textareas. */
+      panelOpen = false;
+      boardTitle = shared.title;
+      for (i = 0; i < shared.wheels.length; i++) {
+        init.push({
+          text: shared.wheels[i].list.join("\n"),
+          name: shared.wheels[i].name,
+          history: []
+        });
+      }
+    } else if (shadow && shadow.wheels.length) {
+      for (i = 0; i < shadow.wheels.length && i < MAX_WHEELS; i++) {
+        var w = shadow.wheels[i] || {};
+        init.push({
+          text: typeof w.text === "string" ? w.text : "",
+          name: typeof w.name === "string" ? w.name : "",
+          history: Array.isArray(w.history) ? w.history : []
+        });
+      }
+      /* A saved board of nothing but blanks is the same as no board. */
+      var anyContent = false;
+      for (i = 0; i < init.length; i++) {
+        if (init[i].text.trim() || init[i].name) anyContent = true;
+      }
+      if (!anyContent && init.length === 1) init = [];
+    }
+
+    var sampled = false;
+    if (!init.length) {
+      init = [{ text: SAMPLE.join("\n"), name: "", history: [] }];
+      sampled = true;
+    }
+
+    setSound(soundOn);
+    renderTitle();
+    for (i = 0; i < init.length; i++) addWheel(init[i], true);
+    setActive(wheels[0]);
+
+    if (boardFromUrl) {
+      var msg = wheels.length > 1
+        ? "Board loaded from the link. Editing it makes it yours."
+        : "List loaded from the link. Editing it makes it yours.";
+      for (i = 0; i < wheels.length; i++) wheels[i].setHint(msg);
+    } else if (sampled) {
+      wheels[0].setHint("Sample list loaded — replace it with your own names.");
+    }
+
+    setPanel(panelOpen);
+    syncChrome();
+    relayout();
+  })();
 })();
 </script>
