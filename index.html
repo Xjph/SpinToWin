@@ -118,7 +118,7 @@
     font: 400 10px/1 var(--mono)
   }
 
-  .panel-toggle {
+  .header-button {
     align-self: center;
     display: inline-flex;
     align-items: center;
@@ -135,15 +135,15 @@
     white-space: nowrap;
     transition: color .15s ease, border-color .15s ease;
   }
-  .panel-toggle:hover { color: var(--brass); border-color: var(--brass); }
-  .panel-toggle:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
-  .panel-toggle svg {
+  .header-button:hover { color: var(--brass); border-color: var(--brass); }
+  .header-button:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+  .header-button svg {
     width: 13px;
     height: 13px;
     flex: none;
     transition: transform .2s ease;
   }
-  .panel-toggle[aria-expanded="false"] svg { transform: rotate(180deg); }
+  .header-button[aria-expanded="false"] svg { transform: rotate(180deg); }
 
   /* ---------- layout ---------- */
 
@@ -569,7 +569,10 @@
     <div class="links">
         <a class="external-link" href="https://github.com/Xjph/SpinToWin">github</a> - <a class="external-link" href="https://ko-fi.com/vithigar">ko-fi</a>
     </div>
-    <button class="panel-toggle" id="panelToggle" type="button" aria-expanded="true" aria-controls="panel">
+    <button class="header-button" id="addWheel" type="button" aria-expanded="true" aria-controls="panel">
+      <span id="addWheelLabel">Add wheel</span>
+    </button>
+    <button class="header-button" id="panelToggle" type="button" aria-expanded="true" aria-controls="panel">
       <svg viewBox="0 0 16 16" aria-hidden="true">
         <path d="M6 3 L11 8 L6 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
       </svg>
@@ -701,6 +704,7 @@
   var stageEl = document.querySelector(".stage");
   var panelToggle = document.getElementById("panelToggle");
   var panelToggleLabel = document.getElementById("panelToggleLabel");
+  var addWheel = document.getElementById("addWheel");
 
   var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -717,6 +721,7 @@
   var idleOdds = "";
   var fromUrl = false;
   var storedText = "";
+  var addedWheels = 0;
 
   /* ---------- storage ---------- */
 
@@ -1559,6 +1564,21 @@
   panelToggle.addEventListener("click", function () {
     setPanel(!panelOpen);
     save();
+  });
+
+  addWheel.addEventListener("click", function () {
+    // Duplicate and add new layoutEl
+    var newLayoutEl = layoutEl.cloneNode(true);
+    addedWheels++;
+
+    // Update the ID of the new layout element and all child elements
+    newLayoutEl.id = "layout-" + addedWheels;
+    var childElements = newLayoutEl.querySelectorAll("[id]");
+    childElements.forEach(function (el) {
+      el.id = el.id + "-" + addedWheels;
+    });
+
+    layoutEl.parentNode.insertBefore(newLayoutEl, layoutEl.nextSibling);
   });
 
   window.addEventListener("resize", fitWheel);
