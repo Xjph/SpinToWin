@@ -99,10 +99,8 @@
     font: 400 clamp(1.75rem, 5vw, 2.4rem)/1 var(--display);
     margin: 0;
     letter-spacing: -.015em;
-    /* The board's name is one line, whole, always: nowrap stops it
-       breaking, and leaving min-width at auto stops the masthead
-       shrinking it below that line. Long names push the buttons onto
-       the next row instead. */
+    /* One line, whole, always: nowrap plus the default min-width, so a
+       long name pushes the buttons to the next row. */
     white-space: nowrap;
   }
   .wordmark em {
@@ -286,8 +284,8 @@
     align-items: start;
   }
 
-  /* A card wide enough for both puts the list beside the wheel; a narrow
-     one — which is what tiling several wheels produces — stacks it under. */
+  /* Wide card: list beside the wheel. Narrow, which is what tiling
+     produces: list underneath. */
   @container (min-width: 780px) {
     .board:not(.is-collapsed) .card-grid { grid-template-columns: minmax(0, 1fr) 320px; gap: 36px; }
   }
@@ -857,20 +855,20 @@
   var wheelSeq = 0;
   var activeWheel = null;
   var panelOpen = true;
+  /* What to persist: a link collapses the lists, but only the toggle
+     moves the saved preference. */
+  var storedPanel = true;
   var soundOn = true;
   var boardTitle = "";
 
-  /* A list arriving by link is shown, but the saved board is held in
-     reserve until the visitor edits something — opening a link is never
-     a way to lose the lists you had. */
+  /* A link is shown, but the saved board is held in reserve until the
+     visitor edits: opening a link never loses the lists they had. */
   var boardFromUrl = false;
   var shadow = null;
 
   /* ---------- link payload ----------
-     Copy link emits ?w=<base64url> per wheel, so the lists aren't legible
-     in the address bar before anyone opens them. The bytes are a format
-     flag (0 raw UTF-8, 1 LZW) followed by the list text, LZW'd whenever
-     that comes out smaller. */
+     Packed so the lists aren't legible in the address bar: a format flag
+     (0 raw UTF-8, 1 LZW) then the text, LZW'd when that comes out smaller. */
 
   var B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
   var B64REV = (function () {
@@ -977,7 +975,7 @@
     return outb;
   }
 
-  function packList(text) {
+  function packText(text) {
     var bytes = new TextEncoder().encode(text);
     var lzw = lzwEncode(bytes);
     var useLzw = lzw.length > 0 && lzw.length < bytes.length;
@@ -988,38 +986,35 @@
     return bytesToB64(buf);
   }
 
-  function unpackList(str) {
+  function unpackText(str) {
     if (!hasCodec) return null;
     var buf = b64ToBytes(str);
     if (!buf || buf.length < 2) return null;
     var body = buf.subarray(1);
     var bytes = buf[0] === 1 ? lzwDecode(body) : buf[0] === 0 ? body : null;
     if (!bytes) return null;
-    /* fatal, so a mangled link falls through to the saved list rather
-       than filling the wheel with replacement characters. */
+    /* fatal, so a mangled link falls through to the saved board rather
+       than to replacement characters. */
     try { return new TextDecoder("utf-8", { fatal: true }).decode(bytes); }
     catch (e) { return null; }
   }
 
   /* ---------- shareable links ----------
-     ?w=<b64>&w=<b64>              — what Copy link writes, one per wheel
-     ?n=<b64>&n=                   — wheel names, positional against the
-                                     w's and only present once something
-                                     has been renamed
-     ?t=<b64>                      — the board's own name, likewise only
-                                     there once it has one
-     ?list=Red%0AGreen%0A2%23Blue  — readable form, newline or comma
-                                     separated, still accepted
+     ?b=<b64>                      — the whole board; what Copy link writes
+     Older links still open:
+     ?w=<b64>&w=<b64>              — one packed list per wheel
+     ?n=<b64>&n=                   — wheel names, positional against the w's
+     ?t=<b64>                      — the board's own name
+     ?list=Red%0AGreen%0A2%23Blue  — readable, newline or comma separated
      ?e=Red&e=Green                — one parameter per entry, for labels
-                                     that contain a comma
-     The readable forms only ever describe a single wheel. */
+                                     containing a comma
+     The readable forms describe a single wheel. */
 
   function queryString() {
     var s = location.search.replace(/^\?/, "");
     var h = location.hash.replace(/^#/, "");
     if (!h) return s;
-    /* A hand-typed "2#Blue" puts everything from the # into the fragment.
-       Stitch it back on so unencoded links still work. */
+    /* A hand-typed "2#Blue" spills into the fragment; stitch it back on. */
     return s ? s + "#" + h : h;
   }
 
@@ -1036,14 +1031,53 @@
     return String(s).replace(/\s+/g, " ").trim().slice(0, MAX_NAME);
   }
 
+  /* Title, then a record per wheel: name on the first line, entries on
+     the rest. One payload rather than a parameter apiece gives LZW a
+     single dictionary over every list, which is where the saving is. */
+  var REC = "\x1E";
+
+  function cleanShare(s) {
+    /* Control bytes have no place in a label and would confuse the frame. */
+    return String(s).replace(/[\x00-\x09\x0B-\x1F\x7F]/g, " ");
+  }
+
+  function packBoard() {
+    var recs = [cleanShare(boardTitle)];
+    for (var i = 0; i < wheels.length; i++) {
+      var lines = wheels[i].rawLines();
+      if (!lines.length) continue;
+      recs.push(cleanShare(wheels[i].getName()) + "\n" + cleanShare(lines.join("\n")));
+    }
+    return recs.length > 1 ? recs.join(REC) : null;
+  }
+
+  function unpackBoard(text) {
+    var recs = text.split(REC);
+    if (recs.length < 2) return null;
+    var out = [];
+    for (var i = 1; i < recs.length && out.length < MAX_WHEELS; i++) {
+      var lines = recs[i].split("\n");
+      var list = trimAll(lines.slice(1));
+      if (!list) continue;
+      out.push({ list: list, name: cleanName(lines[0]) });
+    }
+    return out.length ? { title: cleanName(recs[0]), wheels: out } : null;
+  }
+
   function boardFromLink() {
     var params;
     try { params = new URLSearchParams(queryString()); } catch (e) { return null; }
 
+    var whole = params.get("b");
+    if (whole) {
+      var flat = unpackText(whole.trim());
+      return flat === null ? null : unpackBoard(flat);
+    }
+
     var title = "";
     var rawTitle = params.get("t");
     if (rawTitle) {
-      var decodedTitle = unpackList(rawTitle.trim());
+      var decodedTitle = unpackText(rawTitle.trim());
       if (decodedTitle !== null) title = cleanName(decodedTitle);
     }
 
@@ -1052,15 +1086,14 @@
       var names = params.getAll("n");
       var out = [];
       for (var i = 0; i < packed.length && out.length < MAX_WHEELS; i++) {
-        var text = unpackList(packed[i].trim());
+        var text = unpackText(packed[i].trim());
         if (text === null) return null;
         var list = trimAll(text.split(/[\r\n]+/));
         if (!list) continue;
-        /* A name that won't decode costs the wheel its title, not the
-           whole link. */
+        /* A name that won't decode costs the wheel its title, not the link. */
         var name = "";
         if (names[i]) {
-          var decoded = unpackList(names[i].trim());
+          var decoded = unpackText(names[i].trim());
           if (decoded !== null) name = cleanName(decoded);
         }
         out.push({ list: list, name: name });
@@ -1082,32 +1115,17 @@
 
   function shareUrl() {
     var base = location.href.split(/[?#]/)[0];
-    var texts = [], names = [], named = false, i;
-    for (i = 0; i < wheels.length; i++) {
-      var lines = wheels[i].rawLines();
-      if (!lines.length) continue;
-      texts.push(lines.join("\n"));
-      var name = wheels[i].getName();
-      if (name) named = true;
-      names.push(name);
-    }
-    if (!texts.length) return base;
+    var board = packBoard();
+    if (!board) return base;
     if (!hasCodec) {
-      /* No TextEncoder: fall back to the readable form rather than no
-         link. It only carries one wheel, so send the first non-empty. */
-      return base + "?list=" + encodeURIComponent(texts[0]);
-    }
-    var parts = [];
-    if (boardTitle) parts.push("t=" + packList(boardTitle));
-    for (i = 0; i < texts.length; i++) parts.push("w=" + packList(texts[i]));
-    /* Names ride along only once there are some, so a board nobody has
-       renamed still produces exactly the link it used to. */
-    if (named) {
-      for (i = 0; i < names.length; i++) {
-        parts.push("n=" + (names[i] ? packList(names[i]) : ""));
+      /* No TextEncoder: a readable single-wheel link beats no link at all. */
+      for (var i = 0; i < wheels.length; i++) {
+        var lines = wheels[i].rawLines();
+        if (lines.length) return base + "?list=" + encodeURIComponent(lines.join("\n"));
       }
+      return base;
     }
-    return base + "?" + parts.join("&");
+    return base + "?b=" + packText(board);
   }
 
   /* ---------- storage ---------- */
@@ -1140,8 +1158,8 @@
     for (i = 0; i < wheels.length; i++) live.push(wheels[i].serialize());
     if (!boardFromUrl) return live;
 
-    /* Still showing a link: write back the board that was already saved,
-       but let the spins that happened here land in its history. */
+    /* Showing a link: keep the saved board, but let spins here reach its
+       history. */
     var kept = (shadow && shadow.wheels) ? shadow.wheels : [];
     if (!kept.length) kept = [{ text: "", name: "", history: [] }];
     var out = [];
@@ -1162,7 +1180,7 @@
         title: boardFromUrl ? ((shadow && shadow.title) || "") : boardTitle,
         wheels: wheelsForSave(),
         sound: soundOn,
-        panel: panelOpen
+        panel: storedPanel
       }));
     } catch (e) { /* ignore and continue, page works without storage */ }
   }
@@ -1195,9 +1213,8 @@
     return n;
   }
 
-  /* Several wheels turning at once would otherwise stack into a buzz, so
-     clicks are rate-limited across the board and every voice is scaled
-     back by how many wheels are making noise. */
+  /* Wheels turning together stack into a buzz: rate-limit clicks across
+     the board and scale every voice by how many are spinning. */
   function voices() { return Math.max(1, Math.sqrt(spinningCount())); }
 
   function click() {
@@ -1252,13 +1269,11 @@
   function layoutBoard() {
     var n = wheels.length;
     var minCard = panelOpen ? 380 : 320;
-    /* One wheel keeps the tall-and-narrow measure the page was built
-       around; a board of them wants every pixel it can get. */
+    /* One wheel keeps the page's narrow measure; a board wants the width. */
     pageEl.style.maxWidth = n > 1 ? "2400px" : "";
     var avail = boardEl.clientWidth || window.innerWidth;
     var byWidth = Math.max(1, Math.floor((avail + GRID_GAP) / (minCard + GRID_GAP)));
-    /* Up to three wheels read best in a single row; past that a squarish
-       grid keeps every wheel a usable size. */
+    /* Up to three read best in one row; past that, a squarish grid. */
     var ideal = n <= 3 ? n : Math.ceil(Math.sqrt(n));
     boardCols = Math.max(1, Math.min(ideal, byWidth));
     boardEl.style.setProperty("--cols", boardCols);
@@ -1287,10 +1302,9 @@
     return null;
   }
 
-  /* "Coffee!Snacks" hands the spin on to the wheel called Snacks once
-     Coffee wins. The part after the ! has to name a wheel that exists,
-     which is what lets an ordinary "Ready! Set" stay the label it looks
-     like — no escaping, and a typo'd target reads back as plain text. */
+  /* "Coffee!Snacks" spins the wheel named Snacks when Coffee wins. The
+     target has to name a real wheel, so "Ready! Set" stays a plain
+     label and nothing needs escaping. */
   function splitTrigger(label) {
     var at = label.lastIndexOf("!");
     if (at < 1) return null;
@@ -1300,8 +1314,8 @@
     return { label: head, target: target };
   }
 
-  /* Naming, adding or removing a wheel changes which triggers resolve,
-     so every wheel re-reads its list whenever the roster moves. */
+  /* The roster decides which triggers resolve, so a change to it makes
+     every wheel re-read its list. */
   function resyncAll() {
     for (var i = 0; i < wheels.length; i++) wheels[i].resync();
   }
@@ -1363,8 +1377,7 @@
 
     /* ---------- entries ---------- */
 
-    /* "2#Blue" or "1.5#Blue" — a leading number and # set the entry's
-       weight. Anything else is a plain entry weighing 1. */
+    /* "2#Blue" — a leading number and # set the weight; otherwise 1. */
     var WEIGHT_RE = /^(\d*\.?\d+)\s*#\s*(.+)$/;
 
     function readEntries() {
@@ -1537,8 +1550,7 @@
       var w = stageEl.clientWidth;
       if (isRow) w -= verdictEl.offsetWidth + (parseFloat(st.columnGap) || 28);
 
-      /* Everything in the card that isn't the wheel: the title bar, and
-         the frame the card wears once there is more than one of them. */
+      /* Card chrome that isn't the wheel: title bar and frame. */
       var cs = getComputedStyle(card);
       var hs = getComputedStyle(headEl);
       var overhead = headEl.offsetHeight + (parseFloat(hs.marginBottom) || 0) +
@@ -1547,8 +1559,8 @@
       var rows = boardRows();
       var h = (window.innerHeight - chromeHeight() - (rows - 1) * GRID_GAP) / rows - overhead;
       if (!isRow) h -= verdictEl.offsetHeight + (parseFloat(st.rowGap) || 20);
-      /* Tiled rows share the viewport, but never shrink a wheel past the
-         point of being readable — the page can scroll instead. */
+      /* Rows share the viewport, but never shrink past readable — the page
+         can scroll instead. */
       if (wheels.length > 1) h = Math.max(h, 300);
 
       var px = Math.max(260, Math.min(w, h));
@@ -1714,9 +1726,8 @@
       syncSpinAll();
     }
 
-    /* A chain is the list of wheels a single user-initiated spin has
-       already set going. Each wheel joins once, which is what stops
-       "A!B" and "B!A" spinning each other forever. */
+    /* The wheels this one spin has already set going. Each joins once, so
+       "A!B" and "B!A" cannot loop. */
     function spin() { startSpin([]); }
 
     function startSpin(chain) {
@@ -1783,8 +1794,8 @@
     }
 
     function finish(idx, trail) {
-      /* Read the volume before setSpinning drops this wheel from the
-         count, so a lone finisher in a crowd isn't suddenly blaring. */
+      /* Before setSpinning drops this wheel from the count, or a lone
+         finisher in a crowd blares. */
       chime();
       setSpinning(false);
       winnerIdx = idx;
@@ -1804,9 +1815,8 @@
       var next = entry.trigger ? wheelByName(entry.trigger) : null;
       if (next && trail.indexOf(next) < 0) {
         odds += " · spins " + next.displayName();
-        /* A beat before the next wheel goes, so the winner that caused
-           it has a moment to be read. Re-resolve on the way in: the
-           board can change while we wait. */
+        /* A beat to read the winner first; re-resolve, the board may have
+           changed while we waited. */
         var target = entry.trigger;
         setTimeout(function () {
           var w = wheelByName(target);
@@ -1894,8 +1904,8 @@
       removeWheel(api);
     });
 
-    /* An empty name isn't a nameless wheel — the placeholder carries the
-       "Wheel 3" default, so clearing the field just restores it. */
+    /* The placeholder carries the "Wheel 3" default, so clearing the
+       field just restores it. */
     function displayName() {
       return nameEl.value.trim() || nameEl.placeholder;
     }
@@ -1910,8 +1920,7 @@
       save();
     });
 
-    /* Triggers are re-resolved when the name settles, not per keystroke
-       — resyncAll redraws every wheel on the board. */
+    /* On settle, not per keystroke: resyncAll redraws every wheel. */
     nameEl.addEventListener("change", function () {
       nameEl.value = cleanName(nameEl.value);
       syncName();
@@ -1981,8 +1990,7 @@
       }
     };
 
-    /* The rest of the wiring waits for api.init(), which addWheel calls
-       once the card is mounted and the board knows this wheel exists. */
+    /* The rest waits for api.init(), once addWheel has mounted the card. */
     renderHistory();
     return api;
   }
@@ -2040,8 +2048,7 @@
   function removeWheel(wheel) {
     var i = wheels.indexOf(wheel);
     if (i < 0) return;
-    /* The board is never empty — removing the last one leaves a blank
-       wheel rather than nothing to type into. */
+    /* Never empty: removing the last one leaves a blank wheel to type into. */
     claimBoard();
     wheels.splice(i, 1);
     wheel.destroy();
@@ -2072,9 +2079,8 @@
 
   /* ---------- board title ---------- */
 
-  /* The wordmark is the board's name. Left alone it stays the app's own
-     title, two-tone and paired with the tagline; once someone names the
-     board, that name replaces both — the pitch has served its purpose. */
+  /* The wordmark is the board's name. Unnamed it stays the app title
+     with its tagline; naming the board replaces both. */
   function renderTitle() {
     titleText.textContent = "";
     if (boardTitle) {
@@ -2100,8 +2106,7 @@
     titleInput.select();
   }
 
-  /* Hiding the input fires its own blur, so the guard is what keeps
-     Escape from being undone by the handler that follows it. */
+  /* Hiding the input fires blur, so the guard stops that undoing Escape. */
   function closeTitle(commit, refocus) {
     if (!titleEditing) return;
     titleEditing = false;
@@ -2111,8 +2116,7 @@
         boardTitle = next;
         claimBoard();
         renderTitle();
-        /* Losing the tagline changes the masthead's height, and the
-           wheels are sized against what the masthead leaves over. */
+        /* The tagline's height was part of the wheels' budget. */
         relayout();
         save();
       }
@@ -2143,6 +2147,7 @@
 
   panelToggle.addEventListener("click", function () {
     setPanel(!panelOpen);
+    storedPanel = panelOpen;
     save();
   });
 
@@ -2229,6 +2234,7 @@
     shadow = loadState();
     if (shadow && typeof shadow.sound === "boolean") soundOn = shadow.sound;
     if (shadow && typeof shadow.panel === "boolean") panelOpen = shadow.panel;
+    storedPanel = panelOpen;
     if (shadow && typeof shadow.title === "string") boardTitle = cleanName(shadow.title);
 
     var shared = boardFromLink();
@@ -2236,6 +2242,8 @@
 
     if (shared) {
       boardFromUrl = true;
+      /* A shared board opens as a board, not as a page of textareas. */
+      panelOpen = false;
       boardTitle = shared.title;
       for (i = 0; i < shared.wheels.length; i++) {
         init.push({
