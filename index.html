@@ -99,8 +99,7 @@
     font: 400 clamp(1.75rem, 5vw, 2.4rem)/1 var(--display);
     margin: 0;
     letter-spacing: -.015em;
-    /* One line, whole, always: nowrap plus the default min-width, so a
-       long name pushes the buttons to the next row. */
+    /* Wrap the buttons, never the name. */
     white-space: nowrap;
   }
   .wordmark em {
@@ -199,9 +198,7 @@
 
   /* ---------- board ---------- */
 
-  /* Wheels first; the lists and the results log share one column, beside
-     the wheels when there's width to spare and under them when there
-     isn't. JS picks which, how the wheels tile and how big they get. */
+  /* Classes and sizes come from layoutBoard(); CSS can't weigh wheel size against layout. */
   .board {
     container: board / inline-size;
     --side-w: 340px;
@@ -217,8 +214,7 @@
   .board.is-collapsed { --side-w: 280px; }
   .board.side-beside { grid-template-columns: minmax(0, 1fr) var(--side-w); }
 
-  /* JS caps the width so each row holds the chosen number of wheels;
-     a short last row centres under the rest. */
+  /* max-width is set by JS to force the chosen column count. */
   .wheels {
     display: flex;
     flex-wrap: wrap;
@@ -314,8 +310,7 @@
     container-type: inline-size;
   }
 
-  /* Turned, the square canvas's corners would reach past the wheel and
-     widen the page; the disc trims them. The shadow sits outside the clip. */
+  /* Clips the rotating canvas's corners, which would otherwise widen the page. */
   .wheel-disc {
     position: absolute;
     inset: 0;
@@ -472,9 +467,7 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* Under the wheel the verdict is a fixed-height strip, so the layout
-     can budget for it: status and odds on one line, the winner and its
-     Remove on the next. Long names cut off; the log has them whole. */
+  /* Fixed height so layoutBoard() can budget for it; the log shows long names whole. */
   .board:not(.verdict-beside) .verdict {
     width: var(--wheel-w);
     height: var(--verdict-h);
@@ -523,8 +516,7 @@
     gap: 24px;
   }
 
-  /* Beside the wheels it rides along and scrolls on its own, so any
-     list is a scroll away without losing sight of the wheels. */
+  /* Sticky and self-scrolling so any list is reachable without losing sight of the wheels. */
   .board.side-beside .side {
     position: sticky;
     top: 12px;
@@ -988,22 +980,17 @@
   var wheelSeq = 0;
   var activeWheel = null;
   var panelOpen = true;
-  /* What to persist: a link collapses the lists, but only the toggle
-     moves the saved preference. */
+  /* Kept apart so a link can collapse the lists without changing the saved preference. */
   var storedPanel = true;
   var soundOn = true;
   var boardTitle = "";
-  /* One log for the board, newest first: { wheel, result }. */
   var log = [];
 
-  /* A link is shown, but the saved board is held in reserve until the
-     visitor edits: opening a link never loses the lists they had. */
+  /* Saved board held back while a link is shown, so opening a link never loses it. */
   var boardFromUrl = false;
   var shadow = null;
 
-  /* ---------- link payload ----------
-     Packed so the lists aren't legible in the address bar: a format flag
-     (0 raw UTF-8, 1 LZW) then the text, LZW'd when that comes out smaller. */
+  /* ---------- link payload ---------- */
 
   var B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
   var B64REV = (function () {
@@ -1044,7 +1031,6 @@
     return Uint8Array.from(out);
   }
 
-  /* LZW with variable-width codes, 9 bits up to 15. */
   function lzwEncode(bytes) {
     if (!bytes.length) return new Uint8Array(0);
     var dict = {}, width = 9, next = 256;
@@ -1110,6 +1096,7 @@
     return outb;
   }
 
+  /* Obscured so the lists aren't legible in the address bar. */
   function packText(text) {
     var bytes = new TextEncoder().encode(text);
     var lzw = lzwEncode(bytes);
@@ -1128,22 +1115,14 @@
     var body = buf.subarray(1);
     var bytes = buf[0] === 1 ? lzwDecode(body) : buf[0] === 0 ? body : null;
     if (!bytes) return null;
-    /* fatal, so a mangled link falls through to the saved board rather
-       than to replacement characters. */
+    /* Fatal, so a mangled link falls back to the saved board, not replacement characters. */
     try { return new TextDecoder("utf-8", { fatal: true }).decode(bytes); }
     catch (e) { return null; }
   }
 
-  /* ---------- shareable links ----------
-     ?b=<b64>                      — the whole board; what Copy link writes
-     Older links still open:
-     ?w=<b64>&w=<b64>              — one packed list per wheel
-     ?n=<b64>&n=                   — wheel names, positional against the w's
-     ?t=<b64>                      — the board's own name
-     ?list=Red%0AGreen%0A2%23Blue  — readable, newline or comma separated
-     ?e=Red&e=Green                — one parameter per entry, for labels
-                                     containing a comma
-     The readable forms describe a single wheel. */
+  /* ---------- shareable links ---------- */
+
+  /* ?b= is current; ?w/?n/?t, ?list and ?e are older links that must keep opening. */
 
   function queryString() {
     var s = location.search.replace(/^\?/, "");
@@ -1166,9 +1145,7 @@
     return String(s).replace(/\s+/g, " ").trim().slice(0, MAX_NAME);
   }
 
-  /* Title, then a record per wheel: name on the first line, entries on
-     the rest. One payload rather than a parameter apiece gives LZW a
-     single dictionary over every list, which is where the saving is. */
+  /* One payload, not a parameter per wheel, so LZW shares one dictionary across lists. */
   var REC = "\x1E";
 
   function cleanShare(s) {
@@ -1302,8 +1279,7 @@
       }
       return out;
     }
-    /* Older saves kept a log per wheel, with nothing to interleave them
-       by; one wheel's run after another is the best that can be done. */
+    /* Old per-wheel logs have no timestamps, so they can only be concatenated. */
     var ws = Array.isArray(state.wheels) ? state.wheels : [];
     for (i = 0; i < ws.length; i++) {
       var w = ws[i] || {};
@@ -1323,8 +1299,7 @@
       return out;
     }
 
-    /* Showing a link: keep the saved board. Spins here still reach the
-       log, which belongs to the visitor whatever board is showing. */
+    /* Persist the saved board, not the one from the link. */
     var kept = (shadow && shadow.wheels) ? shadow.wheels : [];
     for (i = 0; i < kept.length; i++) {
       var w = kept[i] || {};
@@ -1377,8 +1352,7 @@
     return n;
   }
 
-  /* Wheels turning together stack into a buzz: rate-limit clicks across
-     the board and scale every voice by how many are spinning. */
+  /* Simultaneous spins stack into a buzz, so clicks are rate-limited and volume scaled. */
   function voices() { return Math.max(1, Math.sqrt(spinningCount())); }
 
   function click() {
@@ -1438,8 +1412,7 @@
     return parseFloat(getComputedStyle(el).getPropertyValue(name)) || 0;
   }
 
-  /* What a tile spends on anything but the wheel: frame, title bar, and
-     the verdict that sits under or beside it. */
+  /* Tile space the wheel can't use: frame, title bar and verdict. */
   function tileFrame() {
     var el = wheels[0].el;
     var cs = getComputedStyle(el);
@@ -1456,8 +1429,6 @@
     };
   }
 
-  /* Try every column count, verdict under the wheel or beside it, and
-     keep whichever gives the biggest wheel. */
   function bestTiling(n, W, H, f) {
     var best = { d: -Infinity, cols: 1, beside: false };
     for (var c = 1; c <= n; c++) {
@@ -1467,8 +1438,7 @@
       var under = Math.min(cellW, cellH - f.vh - f.sg);
       var beside = Math.min(cellW - f.vw - f.sg, cellH);
       if (under > best.d) best = { d: under, cols: c, beside: false };
-      /* Beside only when it clearly wins, and has room for the verdict's
-         full height. */
+      /* Margin stops layouts flip-flopping; 160 fits the verdict's full height. */
       if (beside >= 160 && beside > best.d + 8) best = { d: beside, cols: c, beside: true };
     }
     return best;
@@ -1486,16 +1456,14 @@
     var H = window.innerHeight - chromeHeight();
     var sideW = cssVar(boardEl, "--side-w") + (parseFloat(getComputedStyle(boardEl).columnGap) || 0);
 
-    /* The side column goes beside the wheels while that costs them
-       little; past that it drops below and the page scrolls to it. */
+    /* Wheels come first: the side column sits beside them only if it costs under 20% of their size. */
     var under = bestTiling(n, boardW, H, f);
     var beside = bestTiling(n, boardW - sideW, H, f);
     var sideBeside = boardW >= 860 && beside.d >= under.d * 0.8;
     var t = sideBeside ? beside : under;
     var W = sideBeside ? boardW - sideW : boardW;
 
-    /* Too little height for every wheel to share the screen: as many
-       abreast as stay readable, filling the width, and the page scrolls. */
+    /* Below MIN_WHEEL labels get unreadable, so scroll instead of shrinking. */
     if (t.d < MIN_WHEEL) {
       var d0 = Math.min(MIN_WHEEL, W - f.x);
       var c = Math.max(1, Math.min(n, Math.floor((W + f.gap) / (d0 + f.x + f.gap))));
@@ -1574,9 +1542,7 @@
     return null;
   }
 
-  /* "Coffee!Snacks" spins the wheel named Snacks when Coffee wins. The
-     target has to name a real wheel, so "Ready! Set" stays a plain
-     label and nothing needs escaping. */
+  /* Target must name a real wheel, so "Ready! Set" stays plain and nothing needs escaping. */
   function splitTrigger(label) {
     var at = label.lastIndexOf("!");
     if (at < 1) return null;
@@ -1586,16 +1552,14 @@
     return { label: head, target: target };
   }
 
-  /* The roster decides which triggers resolve, so a change to it makes
-     every wheel re-read its list. */
+  /* Wheel names decide which triggers resolve, so any change re-reads every list. */
   function resyncAll() {
     for (var i = 0; i < wheels.length; i++) wheels[i].resync();
   }
 
   /* ---------- images ---------- */
 
-  /* "[https://…/cat.png]Cat" or "Cat[https://…/cat.png]". Only a real
-     link counts, so "[draft] Notes" stays a plain label. */
+  /* Only a real link counts, so "[draft] Notes" stays a plain label. */
   var IMG_URL = "((?:https?:\\/\\/|data:image\\/)[^\\]\\s]+)";
   var IMG_PRE = new RegExp("^\\[\\s*" + IMG_URL + "\\s*\\]\\s*(.*)$", "i");
   var IMG_POST = new RegExp("^(.*?)\\s*\\[\\s*" + IMG_URL + "\\s*\\]$", "i");
@@ -1609,8 +1573,7 @@
     return { label: text, url: "", after: false };
   }
 
-  /* One load per URL for the whole board. Until it arrives, or if it
-     never does, the slice shows just its text. */
+  /* Shared across wheels; until loaded, or if it fails, the slice shows just its text. */
   var imageCache = {};
   var redrawPending = false;
 
@@ -1654,11 +1617,10 @@
   /* ---------- a wheel ---------- */
 
   function createWheel(init) {
-    /* Two halves: the tile on the board, the list card in the side
-       column. */
     var card = tpl.content.firstElementChild.cloneNode(true);
     var listCard = listTpl.content.firstElementChild.cloneNode(true);
     var uid = "w" + (++wheelSeq);
+    /* Split across two templates, so lookups search both. */
     function q(sel) { return card.querySelector(sel) || listCard.querySelector(sel); }
 
     var canvas = q(".wheel-canvas");
@@ -1706,7 +1668,6 @@
 
     /* ---------- entries ---------- */
 
-    /* "2#Blue" — a leading number and # set the weight; otherwise 1. */
     var WEIGHT_RE = /^(\d*\.?\d+)\s*#\s*(.+)$/;
 
     function readEntries() {
@@ -1720,8 +1681,7 @@
         /* A zero weight is a slice nobody can land on — leave it off. */
         if (!(weight > 0)) continue;
         var label = m ? m[2].trim() : s;
-        /* Weight comes off the front, the trigger off the back, and the
-           picture from whatever end of what's left. */
+        /* Trigger comes off before the image, so "Cat[url]!Snacks" leaves the image last. */
         var trig = splitTrigger(label);
         var pic = splitImage(trig ? trig.label : label);
         out.push({
@@ -1824,14 +1784,12 @@
       return ctx.measureText(s).width / MEASURE_PX;
     }
 
-    /* A picture beside text stands a little taller than one line; alone
-       it may grow well past the text cap. */
+    /* Alone, a picture may grow well past the text cap. */
     var IMG_EM = 1.6;
     var IMG_GAP_EM = 0.3;
     var IMG_ONLY_SCALE = 2.6;
 
-    /* The label as one box, in ems of its font: text block and picture
-       side by side, as tall as the taller of the two. */
+    /* One box, so the slice-fit check covers text and picture together. */
     function measureLabel(lines, img) {
       var uText = 0;
       for (var i = 0; i < lines.length; i++) {
@@ -1927,7 +1885,6 @@
 
       ctx.clearRect(0, 0, size, size);
 
-      /* Rim: a brass band carrying one peg per slice boundary. */
       var band = ctx.createLinearGradient(0, 0, size, size);
       band.addColorStop(0, rimA);
       band.addColorStop(0.42, rimB);
@@ -2008,8 +1965,7 @@
         ctx.shadowColor = "rgba(0,0,0,.42)";
         ctx.shadowBlur = Math.max(2, s * 0.16);
         ctx.shadowOffsetY = Math.max(1, s * 0.05);
-        /* The label reads outward from the hub: a leading picture sits
-           nearest the hub, a trailing one at the rim. */
+        /* Reading runs outward, so a leading picture sits by the hub, a trailing one at the rim. */
         var textRight = outerR;
         if (img) {
           var iw = box.imgW * s, ih = box.imgH * s, ix;
@@ -2047,7 +2003,7 @@
         ctx.stroke();
       }
 
-      /* Inner bevel under the hub cap. */
+      /* Backs the DOM hub so slice tips never show around it. */
       ctx.beginPath();
       ctx.arc(cx, cy, hubR, 0, TAU);
       ctx.fillStyle = css.getPropertyValue("--hub-face").trim() || "#FBF8F1";
@@ -2069,8 +2025,7 @@
       syncSpinAll();
     }
 
-    /* The wheels this one spin has already set going. Each joins once, so
-       "A!B" and "B!A" cannot loop. */
+    /* Each wheel joins a chain once, so "A!B" and "B!A" can't loop. */
     function spin() { startSpin([]); }
 
     function startSpin(chain) {
@@ -2138,8 +2093,7 @@
     }
 
     function finish(idx, trail) {
-      /* Before setSpinning drops this wheel from the count, or a lone
-         finisher in a crowd blares. */
+      /* Chime first, while this wheel still counts toward the volume scaling. */
       chime();
       setSpinning(false);
       winnerIdx = idx;
@@ -2167,8 +2121,7 @@
       var next = entry.trigger ? wheelByName(entry.trigger) : null;
       if (next && trail.indexOf(next) < 0) {
         odds += " · spins " + next.displayName();
-        /* A beat to read the winner first; re-resolve, the board may have
-           changed while we waited. */
+        /* Pause to read the winner; re-resolve, as the board may change meanwhile. */
         var target = entry.trigger;
         setTimeout(function () {
           var w = wheelByName(target);
@@ -2231,14 +2184,12 @@
       removeWheel(api);
     });
 
-    /* The placeholder carries the "Wheel 3" default, so clearing the
-       field just restores it. */
+    /* Placeholder holds the default name, so clearing the field restores it. */
     function displayName() {
       return nameEl.value.trim() || nameEl.placeholder;
     }
 
-    /* On a board the list card is headed by its wheel's name; alone, by
-       what goes in it. */
+    /* On a board, lists are labelled by wheel; alone, by how to fill them. */
     function syncName() {
       var multi = wheels.length > 1;
       removeWheelBtn.setAttribute("aria-label", "Remove " + displayName());
@@ -2386,7 +2337,6 @@
   function removeWheel(wheel) {
     var i = wheels.indexOf(wheel);
     if (i < 0) return;
-    /* Never empty: removing the last one leaves a blank wheel to type into. */
     claimBoard();
     wheels.splice(i, 1);
     wheel.destroy();
@@ -2394,6 +2344,7 @@
       activeWheel = null;
       setActive(wheels[Math.min(i, wheels.length - 1)] || null);
     }
+    /* Never empty: removing the last one leaves a blank wheel to type into. */
     if (!wheels.length) addWheel({ text: "", name: "" }, true);
     renumber();
     resyncAll();
@@ -2417,8 +2368,7 @@
 
   /* ---------- board title ---------- */
 
-  /* The wordmark is the board's name. Unnamed it stays the app title
-     with its tagline; naming the board replaces both. */
+  /* A named board replaces both the app title and the tagline. */
   function renderTitle() {
     titleText.textContent = "";
     if (boardTitle) {
