@@ -873,7 +873,7 @@
 
       <div class="verdict">
         <span class="verdict-label">Ready</span>
-        <p class="verdict-name is-idle" aria-live="polite">Tap the wheel or hit Spin to pick a winner.</p>
+        <p class="verdict-name is-idle" aria-live="polite">Tap the wheel to pick a winner.</p>
         <div class="verdict-actions is-idle">
           <button class="act primary again" type="button">Spin again</button>
           <button class="act remove" type="button" title="Remove this winner from the wheel's list">Remove</button>
@@ -1828,10 +1828,6 @@
         ctx.strokeStyle = css.getPropertyValue("--line").trim() || "#D5D1E2";
         ctx.stroke();
         ctx.setLineDash([]);
-        ctx.fillStyle = css.getPropertyValue("--ink-soft").trim() || "#5C5670";
-        ctx.font = "500 " + Math.max(12, size * 0.036) + "px Archivo, sans-serif";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
         return;
       }
 
