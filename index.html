@@ -99,8 +99,7 @@
     font: 400 clamp(1.75rem, 5vw, 2.4rem)/1 var(--display);
     margin: 0;
     letter-spacing: -.015em;
-    /* One line, whole, always: nowrap plus the default min-width, so a
-       long name pushes the buttons to the next row. */
+    /* Wrap the buttons, never the name. */
     white-space: nowrap;
   }
   .wordmark em {
@@ -199,19 +198,35 @@
 
   /* ---------- board ---------- */
 
+  /* Classes and sizes come from layoutBoard(); CSS can't weigh wheel size against layout. */
   .board {
+    container: board / inline-size;
+    --side-w: 340px;
+    --wheel-w: 300px;
+    --verdict-w: 240px;
+    --verdict-h: 68px;
+    --stage-gap: 14px;
     display: grid;
-    grid-template-columns: repeat(var(--cols, 1), minmax(0, 1fr));
-    gap: 34px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
     align-items: start;
   }
+  .board.is-collapsed { --side-w: 280px; }
+  .board.side-beside { grid-template-columns: minmax(0, 1fr) var(--side-w); }
 
-  .wheel-card { container-type: inline-size; }
+  /* max-width is set by JS to force the chosen column count. */
+  .wheels {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+    margin-inline: auto;
+  }
 
   .board.is-multi .wheel-card {
     border: 1px solid var(--line);
     border-radius: 4px;
-    padding: 14px 18px 20px;
+    padding: 8px 12px 12px;
     transition: border-color .15s ease, box-shadow .15s ease;
   }
   .board.is-multi .wheel-card.is-active {
@@ -225,14 +240,14 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding-bottom: 9px;
-    margin-bottom: 18px;
-    border-bottom: 1px solid var(--line);
+    margin-bottom: 10px;
   }
 
   /* A plain label until you click it, an input the whole time. */
   .card-name {
     flex: 1 1 auto;
+    /* Zero basis, so the wheel sets the tile's width and not the field. */
+    width: 0;
     min-width: 0;
     padding: 4px 6px;
     margin-left: -7px;
@@ -277,50 +292,31 @@
   .card-remove[disabled] { opacity: .45; cursor: default; }
   .card-remove svg { display: block; width: 12px; height: 12px; }
 
-  .card-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 30px;
-    align-items: start;
-  }
-
-  /* Wide card: list beside the wheel. Narrow, which is what tiling
-     produces: list underneath. */
-  @container (min-width: 780px) {
-    .board:not(.is-collapsed) .card-grid { grid-template-columns: minmax(0, 1fr) 320px; gap: 36px; }
-  }
-
-  .board.is-collapsed .panel { display: none; }
-
-  @container (min-width: 820px) {
-    .board.is-collapsed .stage {
-      flex-direction: row;
-      align-items: center;
-      justify-content: center;
-      gap: 28px;
-    }
-    .board.is-collapsed .verdict {
-      width: 300px;
-      flex: 0 0 300px;
-    }
-  }
-
   /* ---------- stage ---------- */
 
   .stage {
-    --wheel-w: max(260px, min(100%, calc(100vh - 340px)));
-    --wheel-w: max(260px, min(100%, calc(100dvh - 340px)));
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 20px;
+    gap: var(--stage-gap);
   }
+  .board.verdict-beside .stage { flex-direction: row; }
 
   .wheel-wrap {
     position: relative;
+    flex: none;
     width: var(--wheel-w);
     aspect-ratio: 1;
     container-type: inline-size;
+  }
+
+  /* Clips the rotating canvas's corners, which would otherwise widen the page. */
+  .wheel-disc {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    overflow: hidden;
+    filter: drop-shadow(0 10px 22px var(--shadow));
   }
 
   .wheel-canvas {
@@ -328,7 +324,6 @@
     width: 100%;
     height: 100%;
     max-width: 100%;
-    filter: drop-shadow(0 10px 22px var(--shadow));
     will-change: transform;
   }
 
@@ -394,7 +389,8 @@
   /* ---------- verdict ---------- */
 
   .verdict {
-    width: var(--wheel-w);
+    width: var(--verdict-w);
+    flex: none;
     min-height: 152px;
     border: 1px solid var(--line);
     border-top: 3px solid var(--brass);
@@ -436,6 +432,19 @@
   }
   .verdict.is-won .verdict-name { animation: pop .42s cubic-bezier(.2, 1.5, .4, 1); }
 
+  .verdict-img {
+    display: inline-block;
+    height: 1.6em;
+    width: auto;
+    max-width: 100%;
+    vertical-align: middle;
+    object-fit: contain;
+    border-radius: 2px;
+  }
+  .verdict-img.is-before { margin-right: .3em; }
+  .verdict-img.is-after { margin-left: .3em; }
+  .verdict-img.is-alone { height: 3em; }
+
   @keyframes pop {
     from { transform: scale(.82); opacity: 0; }
     to   { transform: scale(1);   opacity: 1; }
@@ -451,18 +460,103 @@
   .verdict-actions.is-idle { visibility: hidden; }
 
   .odds {
+    margin: 0;
     font: 400 11px/1.4 var(--mono);
     color: var(--ink-soft);
     letter-spacing: .02em;
     font-variant-numeric: tabular-nums;
   }
 
-  /* ---------- panel ---------- */
+  /* Fixed height so layoutBoard() can budget for it; the log shows long names whole. */
+  .board:not(.verdict-beside) .verdict {
+    width: var(--wheel-w);
+    height: var(--verdict-h);
+    min-height: 0;
+    padding: 7px 12px 8px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "label odds odds" "name name actions";
+    align-items: center;
+    align-content: center;
+    gap: 3px 12px;
+    text-align: left;
+  }
+  .board:not(.verdict-beside) .verdict-label { grid-area: label; }
+  .board:not(.verdict-beside) .odds {
+    grid-area: odds;
+    font-size: 10px;
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .board:not(.verdict-beside) .verdict-name {
+    grid-area: name;
+    display: block;
+    min-height: 0;
+    font-size: 1.3rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .board:not(.verdict-beside) .verdict-name.is-idle { font-size: 13.5px; }
+  .board:not(.verdict-beside) .verdict-img { height: 1.15em; }
+  .board:not(.verdict-beside) .verdict-actions { grid-area: actions; flex-wrap: nowrap; }
+  .board:not(.verdict-beside) .verdict-actions.is-idle { display: none; }
+  /* The wheel itself is the spin-again button. */
+  .board:not(.verdict-beside) .verdict-actions .again { display: none; }
+  .board:not(.verdict-beside) .verdict-actions button.act { padding: 6px 10px; font-size: 12px; }
 
-  .panel {
+  /* ---------- side: results and lists ---------- */
+
+  .side {
+    min-width: 0;
     display: flex;
     flex-direction: column;
     gap: 24px;
+  }
+
+  /* Sticky and self-scrolling so any list is reachable without losing sight of the wheels. */
+  .board.side-beside .side {
+    position: sticky;
+    top: 12px;
+    /* The same height the wheels get, so it never lengthens the page. */
+    max-height: var(--side-h, calc(100vh - 24px));
+    overflow-y: auto;
+    padding: 3px;
+  }
+
+  .lists {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+  .board:not(.side-beside) .lists {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 22px 24px;
+  }
+  .board.is-collapsed .lists { display: none; }
+
+  @container board (min-width: 760px) {
+    .board:not(.side-beside) .side {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 300px;
+      grid-template-areas: "lists results";
+      gap: 32px;
+      align-items: start;
+    }
+    .board:not(.side-beside) .lists { grid-area: lists; }
+    .board:not(.side-beside) .results { grid-area: results; }
+    .board.is-collapsed:not(.side-beside) .side { display: flex; }
+  }
+
+  .list-card { min-width: 0; }
+  .board.is-multi .list-card.is-active .entries-label { color: var(--brass); }
+  .entries-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .field-head {
@@ -541,6 +635,7 @@
     font: 400 13px/1.85 var(--mono);
     box-shadow: inset 0 1px 3px var(--shadow);
   }
+  .board.is-multi .entries { min-height: 130px; }
   .entries:focus-visible {
     outline: 2px solid var(--brass);
     outline-offset: 1px;
@@ -633,12 +728,12 @@
     padding: 0;
     display: flex;
     flex-direction: column;
-    max-height: 210px;
+    max-height: 240px;
     overflow-y: auto;
   }
   .history li {
     display: grid;
-    grid-template-columns: 2.6em 1fr;
+    grid-template-columns: 2.6em minmax(0, 1fr) auto;
     gap: 10px;
     align-items: baseline;
     padding: 7px 2px;
@@ -652,6 +747,25 @@
     font-variant-numeric: tabular-nums;
   }
   .history .who { overflow-wrap: anywhere; }
+  .history .log-img {
+    height: 1.5em;
+    width: auto;
+    max-width: 4em;
+    margin-right: .4em;
+    vertical-align: middle;
+    object-fit: contain;
+    border-radius: 2px;
+  }
+  .history .tag {
+    max-width: 14ch;
+    font: 400 10px/1.5 var(--mono);
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   .history-empty {
     margin: 10px 0 0;
     font-size: 13px;
@@ -721,7 +835,7 @@
         Add wheel
       </button>
       <button class="header-button" id="spinAll" type="button" hidden>Spin all</button>
-      <button class="header-button" id="panelToggle" type="button" aria-expanded="true" aria-controls="board">
+      <button class="header-button" id="panelToggle" type="button" aria-expanded="true" aria-controls="lists">
         <svg viewBox="0 0 16 16" aria-hidden="true">
           <path d="M6 3 L11 8 L6 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
         </svg>
@@ -730,7 +844,20 @@
     </div>
   </header>
 
-  <div class="board" id="board"></div>
+  <div class="board" id="board">
+    <div class="wheels" id="wheels"></div>
+    <aside class="side">
+      <section class="results" aria-labelledby="logTitle">
+        <div class="history-head">
+          <h2 id="logTitle">Results log</h2>
+          <button class="link-btn" id="clearLog" type="button" hidden>Clear</button>
+        </div>
+        <ul class="history" id="log"></ul>
+        <p class="history-empty" id="logEmpty">No spins yet.</p>
+      </section>
+      <div class="lists" id="lists"></div>
+    </aside>
+  </div>
 </div>
 
 <template id="wheelTpl">
@@ -745,73 +872,64 @@
       </button>
     </div>
 
-    <div class="card-grid">
-      <section class="stage">
-        <div class="wheel-wrap">
-          <canvas class="wheel-canvas"></canvas>
-          <button class="spin-target" type="button" aria-label="Spin the wheel"></button>
-          <div class="hub" aria-hidden="true"><span>Spin</span></div>
-          <div class="pointer" aria-hidden="true">
-            <svg viewBox="0 0 46 56" role="presentation">
-              <path d="M23 54 L7 20 Q23 5 39 20 Z" fill="url(#brassGrad)" stroke="#5B3B08" stroke-width="2.4" stroke-linejoin="round"></path>
-              <circle cx="23" cy="18" r="4.4" fill="#5B3B08"></circle>
-              <circle cx="21.4" cy="16.6" r="1.5" fill="#F6E3B4"></circle>
-            </svg>
-          </div>
+    <section class="stage">
+      <div class="wheel-wrap">
+        <div class="wheel-disc"><canvas class="wheel-canvas"></canvas></div>
+        <button class="spin-target" type="button" aria-label="Spin the wheel"></button>
+        <div class="hub" aria-hidden="true"><span>Spin</span></div>
+        <div class="pointer" aria-hidden="true">
+          <svg viewBox="0 0 46 56" role="presentation">
+            <path d="M23 54 L7 20 Q23 5 39 20 Z" fill="url(#brassGrad)" stroke="#5B3B08" stroke-width="2.4" stroke-linejoin="round"></path>
+            <circle cx="23" cy="18" r="4.4" fill="#5B3B08"></circle>
+            <circle cx="21.4" cy="16.6" r="1.5" fill="#F6E3B4"></circle>
+          </svg>
         </div>
+      </div>
 
-        <div class="verdict">
-          <span class="verdict-label">Ready</span>
-          <p class="verdict-name is-idle" aria-live="polite">Tap the wheel or hit Spin to pick a winner.</p>
-          <div class="verdict-actions is-idle">
-            <button class="act primary again" type="button">Spin again</button>
-            <button class="act remove" type="button">Remove from list</button>
-          </div>
-          <p class="odds"></p>
+      <div class="verdict">
+        <span class="verdict-label">Ready</span>
+        <p class="verdict-name is-idle" aria-live="polite">Tap the wheel to pick a winner.</p>
+        <div class="verdict-actions is-idle">
+          <button class="act primary again" type="button">Spin again</button>
+          <button class="act remove" type="button" title="Remove this winner from the wheel's list">Remove</button>
         </div>
-      </section>
-
-      <aside class="panel">
-        <div>
-          <div class="field-head">
-            <label class="entries-label">Entries — one per line</label>
-            <span class="field-meta">
-              <b class="count">0 slices</b>
-              <button class="info-btn" type="button" aria-expanded="false" aria-label="How entry weights and triggers work">
-                <svg viewBox="0 0 16 16" aria-hidden="true">
-                  <circle cx="8" cy="4.2" r="1.15" fill="currentColor"></circle>
-                  <path d="M8 7.2 V12.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
-                </svg>
-              </button>
-            </span>
-            <div class="help-pop" hidden>
-              <p>Adjust the weight of an entry by prefixing its line with a number followed by <code>#</code>.</p>
-              <p><i>e.g.</i> <code>2#Blue</code> to double the weight.</p>
-              <p>Decimals can also be used: <code>0.5#Green</code>.</p>
-              <p>Zero weight items, like <code>0#Maybe</code>, are omitted from the wheel.</p>
-              <p>End an entry with <code>!</code> and a wheel's name to spin that wheel when the entry wins: <code>Coffee!Snacks</code>.</p>
-              <p>The name has to match a wheel on the board, so an entry like <code>Ready! Set</code> is left alone.</p>
-            </div>
-          </div>
-          <textarea class="entries" spellcheck="false"></textarea>
-          <p class="hint" hidden></p>
-          <div class="row">
-            <button class="act primary spin" type="button">Spin the wheel</button>
-            <button class="act clear" type="button">Clear</button>
-          </div>
-        </div>
-
-        <div>
-          <div class="history-head">
-            <h2>Results log</h2>
-            <button class="link-btn clear-history" type="button" hidden>Clear</button>
-          </div>
-          <ul class="history"></ul>
-          <p class="history-empty">No spins yet.</p>
-        </div>
-      </aside>
-    </div>
+        <p class="odds"></p>
+      </div>
+    </section>
   </article>
+</template>
+
+<template id="listTpl">
+  <section class="list-card">
+    <div class="field-head">
+      <label class="entries-label">Entries — one per line</label>
+      <span class="field-meta">
+        <b class="count">0 slices</b>
+        <button class="info-btn" type="button" aria-expanded="false" aria-label="How entry weights, images and triggers work">
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <circle cx="8" cy="4.2" r="1.15" fill="currentColor"></circle>
+            <path d="M8 7.2 V12.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+          </svg>
+        </button>
+      </span>
+      <div class="help-pop" hidden>
+        <p>Adjust the weight of an entry by prefixing its line with a number followed by <code>#</code>.</p>
+        <p><i>e.g.</i> <code>2#Blue</code> to double the weight.</p>
+        <p>Decimals can also be used: <code>0.5#Green</code>.</p>
+        <p>Zero weight items, like <code>0#Maybe</code>, are omitted from the wheel.</p>
+        <p>Add a picture by putting an image link in square brackets before or after the text: <code>[https://…/cat.png]Cat</code>. A link on its own makes a picture-only slice.</p>
+        <p>End an entry with <code>!</code> and a wheel's name to spin that wheel when the entry wins: <code>Coffee!Snacks</code>.</p>
+        <p>The name has to match a wheel on the board, so an entry like <code>Ready! Set</code> is left alone.</p>
+        <p>Together, the weight goes first and the trigger last: <code>3#[url]Cat</code>, <code>Cat[url]!Snacks</code>.</p>
+      </div>
+    </div>
+    <textarea class="entries" spellcheck="false" placeholder="One entry per line"></textarea>
+    <p class="hint" hidden></p>
+    <div class="row">
+      <button class="act primary spin" type="button">Spin the wheel</button>
+      <button class="act clear" type="button">Clear</button>
+    </div>
+  </section>
 </template>
 
 <script>
@@ -831,10 +949,17 @@
   var MAX_ENTRIES = 300;
   var MAX_WHEELS = 8;
   var MAX_NAME = 40;
-  var GRID_GAP = 34;
+  var LOG_MAX = 60;
+  var MIN_WHEEL = 220;
 
   var boardEl = document.getElementById("board");
+  var wheelsEl = document.getElementById("wheels");
+  var listsEl = document.getElementById("lists");
+  var logEl = document.getElementById("log");
+  var logEmpty = document.getElementById("logEmpty");
+  var clearLogBtn = document.getElementById("clearLog");
   var tpl = document.getElementById("wheelTpl");
+  var listTpl = document.getElementById("listTpl");
   var pageEl = document.querySelector(".page");
   var mastheadEl = document.querySelector(".masthead");
   var panelToggle = document.getElementById("panelToggle");
@@ -855,20 +980,17 @@
   var wheelSeq = 0;
   var activeWheel = null;
   var panelOpen = true;
-  /* What to persist: a link collapses the lists, but only the toggle
-     moves the saved preference. */
+  /* Kept apart so a link can collapse the lists without changing the saved preference. */
   var storedPanel = true;
   var soundOn = true;
   var boardTitle = "";
+  var log = [];
 
-  /* A link is shown, but the saved board is held in reserve until the
-     visitor edits: opening a link never loses the lists they had. */
+  /* Saved board held back while a link is shown, so opening a link never loses it. */
   var boardFromUrl = false;
   var shadow = null;
 
-  /* ---------- link payload ----------
-     Packed so the lists aren't legible in the address bar: a format flag
-     (0 raw UTF-8, 1 LZW) then the text, LZW'd when that comes out smaller. */
+  /* ---------- link payload ---------- */
 
   var B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
   var B64REV = (function () {
@@ -909,7 +1031,6 @@
     return Uint8Array.from(out);
   }
 
-  /* LZW with variable-width codes, 9 bits up to 15. */
   function lzwEncode(bytes) {
     if (!bytes.length) return new Uint8Array(0);
     var dict = {}, width = 9, next = 256;
@@ -975,6 +1096,7 @@
     return outb;
   }
 
+  /* Obscured so the lists aren't legible in the address bar. */
   function packText(text) {
     var bytes = new TextEncoder().encode(text);
     var lzw = lzwEncode(bytes);
@@ -993,22 +1115,14 @@
     var body = buf.subarray(1);
     var bytes = buf[0] === 1 ? lzwDecode(body) : buf[0] === 0 ? body : null;
     if (!bytes) return null;
-    /* fatal, so a mangled link falls through to the saved board rather
-       than to replacement characters. */
+    /* Fatal, so a mangled link falls back to the saved board, not replacement characters. */
     try { return new TextDecoder("utf-8", { fatal: true }).decode(bytes); }
     catch (e) { return null; }
   }
 
-  /* ---------- shareable links ----------
-     ?b=<b64>                      — the whole board; what Copy link writes
-     Older links still open:
-     ?w=<b64>&w=<b64>              — one packed list per wheel
-     ?n=<b64>&n=                   — wheel names, positional against the w's
-     ?t=<b64>                      — the board's own name
-     ?list=Red%0AGreen%0A2%23Blue  — readable, newline or comma separated
-     ?e=Red&e=Green                — one parameter per entry, for labels
-                                     containing a comma
-     The readable forms describe a single wheel. */
+  /* ---------- shareable links ---------- */
+
+  /* ?b= is current; ?w/?n/?t, ?list and ?e are older links that must keep opening. */
 
   function queryString() {
     var s = location.search.replace(/^\?/, "");
@@ -1031,9 +1145,7 @@
     return String(s).replace(/\s+/g, " ").trim().slice(0, MAX_NAME);
   }
 
-  /* Title, then a record per wheel: name on the first line, entries on
-     the rest. One payload rather than a parameter apiece gives LZW a
-     single dictionary over every list, which is where the saving is. */
+  /* One payload, not a parameter per wheel, so LZW shares one dictionary across lists. */
   var REC = "\x1E";
 
   function cleanShare(s) {
@@ -1153,24 +1265,50 @@
     return null;
   }
 
-  function wheelsForSave() {
-    var live = [], i;
-    for (i = 0; i < wheels.length; i++) live.push(wheels[i].serialize());
-    if (!boardFromUrl) return live;
-
-    /* Showing a link: keep the saved board, but let spins here reach its
-       history. */
-    var kept = (shadow && shadow.wheels) ? shadow.wheels : [];
-    if (!kept.length) kept = [{ text: "", name: "", history: [] }];
-    var out = [];
-    for (i = 0; i < kept.length; i++) {
-      out.push({
-        text: typeof kept[i].text === "string" ? kept[i].text : "",
-        name: typeof kept[i].name === "string" ? kept[i].name : "",
-        history: live[i] ? live[i].history : (Array.isArray(kept[i].history) ? kept[i].history : [])
-      });
+  function readLog(state) {
+    var out = [], i;
+    if (!state) return out;
+    if (Array.isArray(state.log)) {
+      for (i = 0; i < state.log.length && out.length < LOG_MAX; i++) {
+        var e = state.log[i];
+        if (e && typeof e.result === "string") {
+          var rec = { wheel: typeof e.wheel === "string" ? e.wheel : "", result: e.result };
+          if (typeof e.image === "string" && IMG_SAFE.test(e.image)) rec.image = e.image;
+          out.push(rec);
+        }
+      }
+      return out;
+    }
+    /* Old per-wheel logs have no timestamps, so they can only be concatenated. */
+    var ws = Array.isArray(state.wheels) ? state.wheels : [];
+    for (i = 0; i < ws.length; i++) {
+      var w = ws[i] || {};
+      var h = Array.isArray(w.history) ? w.history : [];
+      var name = (typeof w.name === "string" && w.name) || "Wheel " + (i + 1);
+      for (var j = 0; j < h.length && out.length < LOG_MAX; j++) {
+        if (typeof h[j] === "string") out.push({ wheel: name, result: h[j] });
+      }
     }
     return out;
+  }
+
+  function wheelsForSave() {
+    var out = [], i;
+    if (!boardFromUrl) {
+      for (i = 0; i < wheels.length; i++) out.push(wheels[i].serialize());
+      return out;
+    }
+
+    /* Persist the saved board, not the one from the link. */
+    var kept = (shadow && shadow.wheels) ? shadow.wheels : [];
+    for (i = 0; i < kept.length; i++) {
+      var w = kept[i] || {};
+      out.push({
+        text: typeof w.text === "string" ? w.text : "",
+        name: typeof w.name === "string" ? w.name : ""
+      });
+    }
+    return out.length ? out : [{ text: "", name: "" }];
   }
 
   function save() {
@@ -1179,6 +1317,7 @@
         v: 2,
         title: boardFromUrl ? ((shadow && shadow.title) || "") : boardTitle,
         wheels: wheelsForSave(),
+        log: log.slice(0, LOG_MAX),
         sound: soundOn,
         panel: storedPanel
       }));
@@ -1213,8 +1352,7 @@
     return n;
   }
 
-  /* Wheels turning together stack into a buzz: rate-limit clicks across
-     the board and scale every voice by how many are spinning. */
+  /* Simultaneous spins stack into a buzz, so clicks are rate-limited and volume scaled. */
   function voices() { return Math.max(1, Math.sqrt(spinningCount())); }
 
   function click() {
@@ -1264,32 +1402,134 @@
       mastheadEl.offsetHeight + parseFloat(getComputedStyle(mastheadEl).marginBottom) + 6;
   }
 
-  var boardCols = 1;
+  function px(style, props) {
+    var sum = 0;
+    for (var i = 0; i < props.length; i++) sum += parseFloat(style[props[i]]) || 0;
+    return sum;
+  }
+
+  function cssVar(el, name) {
+    return parseFloat(getComputedStyle(el).getPropertyValue(name)) || 0;
+  }
+
+  /* Tile space the wheel can't use: frame, title bar and verdict. */
+  function tileFrame() {
+    var el = wheels[0].el;
+    var cs = getComputedStyle(el);
+    var head = el.querySelector(".card-head");
+    var headH = head.offsetHeight
+      ? head.offsetHeight + (parseFloat(getComputedStyle(head).marginBottom) || 0) : 0;
+    return {
+      x: px(cs, ["paddingLeft", "paddingRight", "borderLeftWidth", "borderRightWidth"]),
+      y: px(cs, ["paddingTop", "paddingBottom", "borderTopWidth", "borderBottomWidth"]) + headH,
+      gap: parseFloat(getComputedStyle(wheelsEl).columnGap) || 0,
+      vh: cssVar(boardEl, "--verdict-h"),
+      vw: cssVar(boardEl, "--verdict-w"),
+      sg: cssVar(boardEl, "--stage-gap")
+    };
+  }
+
+  function bestTiling(n, W, H, f) {
+    var best = { d: -Infinity, cols: 1, beside: false };
+    for (var c = 1; c <= n; c++) {
+      var r = Math.ceil(n / c);
+      var cellW = (W - (c - 1) * f.gap) / c - f.x;
+      var cellH = (H - (r - 1) * f.gap) / r - f.y;
+      var under = Math.min(cellW, cellH - f.vh - f.sg);
+      var beside = Math.min(cellW - f.vw - f.sg, cellH);
+      if (under > best.d) best = { d: under, cols: c, beside: false };
+      /* Margin stops layouts flip-flopping; 160 fits the verdict's full height. */
+      if (beside >= 160 && beside > best.d + 8) best = { d: beside, cols: c, beside: true };
+    }
+    return best;
+  }
 
   function layoutBoard() {
     var n = wheels.length;
-    var minCard = panelOpen ? 380 : 320;
+    if (!n) return;
+    boardEl.classList.toggle("is-multi", n > 1);
     /* One wheel keeps the page's narrow measure; a board wants the width. */
     pageEl.style.maxWidth = n > 1 ? "2400px" : "";
-    var avail = boardEl.clientWidth || window.innerWidth;
-    var byWidth = Math.max(1, Math.floor((avail + GRID_GAP) / (minCard + GRID_GAP)));
-    /* Up to three read best in one row; past that, a squarish grid. */
-    var ideal = n <= 3 ? n : Math.ceil(Math.sqrt(n));
-    boardCols = Math.max(1, Math.min(ideal, byWidth));
-    boardEl.style.setProperty("--cols", boardCols);
-    boardEl.classList.toggle("is-multi", n > 1);
-  }
 
-  function boardRows() {
-    return Math.max(1, Math.ceil(wheels.length / boardCols));
+    var f = tileFrame();
+    var boardW = boardEl.clientWidth || window.innerWidth;
+    var H = window.innerHeight - chromeHeight();
+    var sideW = cssVar(boardEl, "--side-w") + (parseFloat(getComputedStyle(boardEl).columnGap) || 0);
+
+    /* Wheels come first: the side column sits beside them only if it costs under 20% of their size. */
+    var under = bestTiling(n, boardW, H, f);
+    var beside = bestTiling(n, boardW - sideW, H, f);
+    var sideBeside = boardW >= 860 && beside.d >= under.d * 0.8;
+    var t = sideBeside ? beside : under;
+    var W = sideBeside ? boardW - sideW : boardW;
+
+    /* Below MIN_WHEEL labels get unreadable, so scroll instead of shrinking. */
+    if (t.d < MIN_WHEEL) {
+      var d0 = Math.min(MIN_WHEEL, W - f.x);
+      var c = Math.max(1, Math.min(n, Math.floor((W + f.gap) / (d0 + f.x + f.gap))));
+      t = { d: Math.max(d0, (W - (c - 1) * f.gap) / c - f.x), cols: c, beside: false };
+    }
+
+    var d = Math.floor(t.d);
+    boardEl.classList.toggle("side-beside", sideBeside);
+    boardEl.classList.toggle("verdict-beside", t.beside);
+    boardEl.style.setProperty("--wheel-w", d + "px");
+    boardEl.style.setProperty("--side-h", Math.floor(H) + "px");
+    var tileW = d + f.x + (t.beside ? f.vw + f.sg : 0);
+    wheelsEl.style.maxWidth = Math.ceil(t.cols * tileW + (t.cols - 1) * f.gap + 1) + "px";
   }
 
   function relayout() {
     layoutBoard();
-    var i;
-    for (i = 0; i < wheels.length; i++) wheels[i].fit();
-    for (i = 0; i < wheels.length; i++) wheels[i].resize();
+    for (var i = 0; i < wheels.length; i++) wheels[i].resize();
   }
+
+  /* ---------- results log ---------- */
+
+  function addLog(wheel, result, image) {
+    var rec = { wheel: wheel, result: result };
+    if (image) rec.image = image;
+    log.unshift(rec);
+    if (log.length > LOG_MAX) log.length = LOG_MAX;
+    renderLog();
+  }
+
+  /* Wheel names only earn a column once there's more than one wheel. */
+  function renderLog() {
+    var tagged = wheels.length > 1;
+    logEl.textContent = "";
+    logEmpty.hidden = log.length > 0;
+    clearLogBtn.hidden = log.length === 0;
+    for (var i = 0; i < log.length; i++) {
+      var li = document.createElement("li");
+      var n = document.createElement("span");
+      n.className = "n";
+      n.textContent = String(log.length - i).padStart(2, "0");
+      var who = document.createElement("span");
+      who.className = "who";
+      who.textContent = log[i].result;
+      /* Always leading in the log, so the column of pictures lines up. */
+      if (log[i].image) {
+        who.insertBefore(makeThumb(log[i].image, "log-img", !log[i].result), who.firstChild);
+      }
+      li.appendChild(n);
+      li.appendChild(who);
+      if (tagged && log[i].wheel) {
+        var tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = log[i].wheel;
+        tag.title = log[i].wheel;
+        li.appendChild(tag);
+      }
+      logEl.appendChild(li);
+    }
+  }
+
+  clearLogBtn.addEventListener("click", function () {
+    log = [];
+    renderLog();
+    save();
+  });
 
   /* ---------- triggers ---------- */
 
@@ -1302,9 +1542,7 @@
     return null;
   }
 
-  /* "Coffee!Snacks" spins the wheel named Snacks when Coffee wins. The
-     target has to name a real wheel, so "Ready! Set" stays a plain
-     label and nothing needs escaping. */
+  /* Target must name a real wheel, so "Ready! Set" stays plain and nothing needs escaping. */
   function splitTrigger(label) {
     var at = label.lastIndexOf("!");
     if (at < 1) return null;
@@ -1314,26 +1552,84 @@
     return { label: head, target: target };
   }
 
-  /* The roster decides which triggers resolve, so a change to it makes
-     every wheel re-read its list. */
+  /* Wheel names decide which triggers resolve, so any change re-reads every list. */
   function resyncAll() {
     for (var i = 0; i < wheels.length; i++) wheels[i].resync();
+  }
+
+  /* ---------- images ---------- */
+
+  /* Only a real link counts, so "[draft] Notes" stays a plain label. */
+  var IMG_URL = "((?:https?:\\/\\/|data:image\\/)[^\\]\\s]+)";
+  var IMG_PRE = new RegExp("^\\[\\s*" + IMG_URL + "\\s*\\]\\s*(.*)$", "i");
+  var IMG_POST = new RegExp("^(.*?)\\s*\\[\\s*" + IMG_URL + "\\s*\\]$", "i");
+  var IMG_SAFE = /^(?:https?:\/\/|data:image\/)/i;
+
+  function splitImage(text) {
+    var m = IMG_PRE.exec(text);
+    if (m) return { label: m[2].trim(), url: m[1], after: false };
+    m = IMG_POST.exec(text);
+    if (m) return { label: m[1].trim(), url: m[2], after: true };
+    return { label: text, url: "", after: false };
+  }
+
+  /* Shared across wheels; until loaded, or if it fails, the slice shows just its text. */
+  var imageCache = {};
+  var redrawPending = false;
+
+  function redrawSoon() {
+    if (redrawPending) return;
+    redrawPending = true;
+    requestAnimationFrame(function () {
+      redrawPending = false;
+      for (var i = 0; i < wheels.length; i++) wheels[i].draw();
+    });
+  }
+
+  function imageFor(url) {
+    if (!url) return null;
+    var rec = imageCache[url];
+    if (!rec) {
+      rec = imageCache[url] = { el: new Image(), aspect: 1, ready: false };
+      rec.el.decoding = "async";
+      rec.el.referrerPolicy = "no-referrer";
+      rec.el.onload = function () {
+        var w = rec.el.naturalWidth, h = rec.el.naturalHeight;
+        rec.aspect = w && h ? w / h : 1;
+        rec.ready = true;
+        redrawSoon();
+      };
+      rec.el.src = url;
+    }
+    return rec.ready ? rec : null;
+  }
+
+  function makeThumb(url, cls, alone) {
+    var img = document.createElement("img");
+    img.className = cls;
+    img.alt = alone ? "Image" : "";
+    img.decoding = "async";
+    img.referrerPolicy = "no-referrer";
+    img.src = url;
+    return img;
   }
 
   /* ---------- a wheel ---------- */
 
   function createWheel(init) {
     var card = tpl.content.firstElementChild.cloneNode(true);
+    var listCard = listTpl.content.firstElementChild.cloneNode(true);
     var uid = "w" + (++wheelSeq);
-    function q(sel) { return card.querySelector(sel); }
+    /* Split across two templates, so lookups search both. */
+    function q(sel) { return card.querySelector(sel) || listCard.querySelector(sel); }
 
     var canvas = q(".wheel-canvas");
     var ctx = canvas.getContext("2d");
     var wrap = q(".wheel-wrap");
     var pointerEl = q(".pointer");
     var spinTarget = q(".spin-target");
-    var stageEl = q(".stage");
     var entriesEl = q(".entries");
+    var listLabel = q(".entries-label");
     var hintEl = q(".hint");
     var countEl = q(".count");
     var oddsEl = q(".odds");
@@ -1345,24 +1641,19 @@
     var againBtn = q(".act.again");
     var removeBtn = q(".act.remove");
     var clearBtn = q(".act.clear");
-    var historyEl = q(".history");
-    var historyEmpty = q(".history-empty");
-    var clearHistoryBtn = q(".clear-history");
     var helpBtn = q(".info-btn");
     var helpPop = q(".help-pop");
     var nameEl = q(".card-name");
-    var headEl = q(".card-head");
     var removeWheelBtn = q(".card-remove");
 
     entriesEl.id = uid + "-entries";
-    q(".entries-label").htmlFor = entriesEl.id;
+    listLabel.htmlFor = entriesEl.id;
     hintEl.id = uid + "-hint";
     entriesEl.setAttribute("aria-describedby", hintEl.id);
     helpPop.id = uid + "-help";
     helpBtn.setAttribute("aria-controls", helpPop.id);
 
     var entries = [];
-    var history = (init && Array.isArray(init.history)) ? init.history.slice(0, 40) : [];
     var theta = 0;
     var flap = 0;
     var spinning = false;
@@ -1377,7 +1668,6 @@
 
     /* ---------- entries ---------- */
 
-    /* "2#Blue" — a leading number and # set the weight; otherwise 1. */
     var WEIGHT_RE = /^(\d*\.?\d+)\s*#\s*(.+)$/;
 
     function readEntries() {
@@ -1391,9 +1681,13 @@
         /* A zero weight is a slice nobody can land on — leave it off. */
         if (!(weight > 0)) continue;
         var label = m ? m[2].trim() : s;
+        /* Trigger comes off before the image, so "Cat[url]!Snacks" leaves the image last. */
         var trig = splitTrigger(label);
+        var pic = splitImage(trig ? trig.label : label);
         out.push({
-          label: trig ? trig.label : label,
+          label: pic.label,
+          image: pic.url,
+          imageAfter: pic.after,
           weight: weight,
           line: i,
           trigger: trig ? trig.target : ""
@@ -1475,9 +1769,9 @@
       verdictName.textContent = entries.length
         ? "Tap the wheel to pick a winner."
         : "Add a few entries to build the wheel.";
+      verdictName.title = "";
       verdictActions.classList.add("is-idle");
       oddsEl.textContent = idleOdds;
-      fit();
     }
 
     /* ---------- label fitting ---------- */
@@ -1490,17 +1784,37 @@
       return ctx.measureText(s).width / MEASURE_PX;
     }
 
-    function sizeForLines(lines, seg, outerR, maxW, maxSize) {
-      var uMax = 0;
+    /* Alone, a picture may grow well past the text cap. */
+    var IMG_EM = 1.6;
+    var IMG_GAP_EM = 0.3;
+    var IMG_ONLY_SCALE = 2.6;
+
+    /* One box, so the slice-fit check covers text and picture together. */
+    function measureLabel(lines, img) {
+      var uText = 0;
       for (var i = 0; i < lines.length; i++) {
         var u = unitWidth(lines[i]);
-        if (u > uMax) uMax = u;
+        if (u > uText) uText = u;
       }
-      if (uMax <= 0) return 0;
-      var hEm = lines.length === 1 ? 1 : lines.length * LINE_EM;
-      var byHeight = (seg * outerR * SAFETY) / (hEm + seg * uMax);
-      var byWidth = maxW / uMax;
-      return Math.min(byHeight, byWidth, maxSize);
+      var hText = !lines.length ? 0 : lines.length === 1 ? 1 : lines.length * LINE_EM;
+      if (!img) return { w: uText, h: hText, imgW: 0, imgH: 0 };
+      var imgH = lines.length ? Math.max(IMG_EM, hText) : 1;
+      var imgW = imgH * img.aspect;
+      return {
+        w: uText + imgW + (lines.length ? IMG_GAP_EM : 0),
+        h: Math.max(hText, imgH),
+        imgW: imgW,
+        imgH: imgH
+      };
+    }
+
+    function sizeForLines(lines, img, seg, outerR, maxW, maxSize) {
+      var m = measureLabel(lines, img);
+      if (m.w <= 0) return 0;
+      var byHeight = (seg * outerR * SAFETY) / (m.h + seg * m.w);
+      var byWidth = maxW / m.w;
+      var cap = img && !lines.length ? maxSize * IMG_ONLY_SCALE : maxSize;
+      return Math.min(byHeight, byWidth, cap);
     }
 
     function splitInto(words, n) {
@@ -1527,14 +1841,15 @@
       return best;
     }
 
-    function layoutLabel(text, seg, outerR, maxW, maxSize) {
+    function layoutLabel(text, img, seg, outerR, maxW, maxSize) {
+      if (!text) return { lines: [], size: sizeForLines([], img, seg, outerR, maxW, maxSize) };
       var words = text.split(/\s+/).filter(Boolean);
-      var best = { lines: [text], size: sizeForLines([text], seg, outerR, maxW, maxSize) };
+      var best = { lines: [text], size: sizeForLines([text], img, seg, outerR, maxW, maxSize) };
       var maxLines = words.length > 10 ? 2 : 3;
       for (var n = 2; n <= maxLines; n++) {
         var lines = splitInto(words, n);
         if (!lines) break;
-        var s = sizeForLines(lines, seg, outerR, maxW, maxSize);
+        var s = sizeForLines(lines, img, seg, outerR, maxW, maxSize);
         /* Only spend an extra line if it buys a meaningfully bigger face. */
         if (s > best.size * 1.08) best = { lines: lines, size: s };
       }
@@ -1542,33 +1857,6 @@
     }
 
     /* ---------- sizing ---------- */
-
-    function fit() {
-      var st = getComputedStyle(stageEl);
-      var isRow = st.flexDirection === "row";
-
-      var w = stageEl.clientWidth;
-      if (isRow) w -= verdictEl.offsetWidth + (parseFloat(st.columnGap) || 28);
-
-      /* Card chrome that isn't the wheel: title bar and frame. */
-      var cs = getComputedStyle(card);
-      var hs = getComputedStyle(headEl);
-      var overhead = headEl.offsetHeight + (parseFloat(hs.marginBottom) || 0) +
-        parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
-
-      var rows = boardRows();
-      var h = (window.innerHeight - chromeHeight() - (rows - 1) * GRID_GAP) / rows - overhead;
-      if (!isRow) h -= verdictEl.offsetHeight + (parseFloat(st.rowGap) || 20);
-      /* Rows share the viewport, but never shrink past readable — the page
-         can scroll instead. */
-      if (wheels.length > 1) h = Math.max(h, 300);
-
-      var px = Math.max(260, Math.min(w, h));
-      var cur = parseFloat(stageEl.style.getPropertyValue("--wheel-w")) || 0;
-      if (Math.abs(px - cur) > 1) {
-        stageEl.style.setProperty("--wheel-w", px.toFixed(1) + "px");
-      }
-    }
 
     function resize() {
       var w = Math.round(wrap.clientWidth);
@@ -1584,7 +1872,7 @@
     /* ---------- drawing ---------- */
 
     function draw() {
-      if (!size) return;
+      if (size < 40) return;
       var n = entries.length;
       var cx = size / 2, cy = size / 2;
       var rim = Math.max(8, size * 0.042);
@@ -1597,7 +1885,6 @@
 
       ctx.clearRect(0, 0, size, size);
 
-      /* Rim: a brass band carrying one peg per slice boundary. */
       var band = ctx.createLinearGradient(0, 0, size, size);
       band.addColorStop(0, rimA);
       band.addColorStop(0.42, rimB);
@@ -1618,10 +1905,6 @@
         ctx.strokeStyle = css.getPropertyValue("--line").trim() || "#D5D1E2";
         ctx.stroke();
         ctx.setLineDash([]);
-        ctx.fillStyle = css.getPropertyValue("--ink-soft").trim() || "#5C5670";
-        ctx.font = "500 " + Math.max(12, size * 0.036) + "px Archivo, sans-serif";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
         return;
       }
 
@@ -1670,18 +1953,34 @@
       ctx.textBaseline = "middle";
       ctx.fillStyle = "#FFFFFF";
       for (var j = 0; j < n; j++) {
-        var lay = layoutLabel(entries[j].label, bounds[j + 1] - bounds[j], outerR, maxW, maxSize);
+        var img = imageFor(entries[j].image);
+        var lay = layoutLabel(entries[j].label, img, bounds[j + 1] - bounds[j], outerR, maxW, maxSize);
         if (!(lay.size > 0.5)) continue;
+        /* Measured while the font is still the measuring size. */
+        var box = measureLabel(lay.lines, img);
+        var s = lay.size;
         ctx.save();
         ctx.rotate((bounds[j] + bounds[j + 1]) / 2 - Math.PI / 2);
-        ctx.font = "600 " + lay.size.toFixed(2) + "px Archivo, sans-serif";
+        ctx.font = "600 " + s.toFixed(2) + "px Archivo, sans-serif";
         ctx.shadowColor = "rgba(0,0,0,.42)";
-        ctx.shadowBlur = Math.max(2, lay.size * 0.16);
-        ctx.shadowOffsetY = Math.max(1, lay.size * 0.05);
-        var lh = lay.size * LINE_EM;
+        ctx.shadowBlur = Math.max(2, s * 0.16);
+        ctx.shadowOffsetY = Math.max(1, s * 0.05);
+        /* Reading runs outward, so a leading picture sits by the hub, a trailing one at the rim. */
+        var textRight = outerR;
+        if (img) {
+          var iw = box.imgW * s, ih = box.imgH * s, ix;
+          if (entries[j].imageAfter || !lay.lines.length) {
+            ix = outerR - iw;
+            textRight = ix - IMG_GAP_EM * s;
+          } else {
+            ix = outerR - box.w * s;
+          }
+          ctx.drawImage(img.el, ix, -ih / 2, iw, ih);
+        }
+        var lh = s * LINE_EM;
         var y = -((lay.lines.length - 1) / 2) * lh;
         for (var k = 0; k < lay.lines.length; k++) {
-          ctx.fillText(lay.lines[k], outerR, y + k * lh);
+          ctx.fillText(lay.lines[k], textRight, y + k * lh);
         }
         ctx.restore();
       }
@@ -1704,7 +2003,7 @@
         ctx.stroke();
       }
 
-      /* Inner bevel under the hub cap. */
+      /* Backs the DOM hub so slice tips never show around it. */
       ctx.beginPath();
       ctx.arc(cx, cy, hubR, 0, TAU);
       ctx.fillStyle = css.getPropertyValue("--hub-face").trim() || "#FBF8F1";
@@ -1726,8 +2025,7 @@
       syncSpinAll();
     }
 
-    /* The wheels this one spin has already set going. Each joins once, so
-       "A!B" and "B!A" cannot loop. */
+    /* Each wheel joins a chain once, so "A!B" and "B!A" can't loop. */
     function spin() { startSpin([]); }
 
     function startSpin(chain) {
@@ -1743,6 +2041,7 @@
       verdictLabel.textContent = "Spinning";
       verdictName.className = "verdict-name is-idle";
       verdictName.textContent = "…";
+      verdictName.title = "";
       verdictActions.classList.add("is-idle");
       draw();
 
@@ -1794,8 +2093,7 @@
     }
 
     function finish(idx, trail) {
-      /* Before setSpinning drops this wheel from the count, or a lone
-         finisher in a crowd blares. */
+      /* Chime first, while this wheel still counts toward the volume scaling. */
       chime();
       setSpinning(false);
       winnerIdx = idx;
@@ -1808,6 +2106,14 @@
       verdictLabel.textContent = "Winner";
       verdictName.className = "verdict-name";
       verdictName.textContent = name;
+      verdictName.title = name;
+      if (entry.image) {
+        var pic = makeThumb(entry.image, "verdict-img", !name);
+        if (!name) pic.classList.add("is-alone");
+        else pic.classList.add(entry.imageAfter ? "is-after" : "is-before");
+        if (entry.imageAfter) verdictName.appendChild(pic);
+        else verdictName.insertBefore(pic, verdictName.firstChild);
+      }
       verdictActions.classList.remove("is-idle");
 
       var odds = (share * 100).toFixed(1) + "% chance · " +
@@ -1815,8 +2121,7 @@
       var next = entry.trigger ? wheelByName(entry.trigger) : null;
       if (next && trail.indexOf(next) < 0) {
         odds += " · spins " + next.displayName();
-        /* A beat to read the winner first; re-resolve, the board may have
-           changed while we waited. */
+        /* Pause to read the winner; re-resolve, as the board may change meanwhile. */
         var target = entry.trigger;
         setTimeout(function () {
           var w = wheelByName(target);
@@ -1826,30 +2131,9 @@
         }, reduceMotion.matches ? 0 : 600);
       }
       oddsEl.textContent = odds;
-      fit();
 
-      history.unshift(name);
-      if (history.length > 40) history.pop();
-      renderHistory();
+      addLog(displayName(), name, entry.image);
       save();
-    }
-
-    function renderHistory() {
-      historyEl.textContent = "";
-      historyEmpty.hidden = history.length > 0;
-      clearHistoryBtn.hidden = history.length === 0;
-      for (var i = 0; i < history.length; i++) {
-        var li = document.createElement("li");
-        var n = document.createElement("span");
-        n.className = "n";
-        n.textContent = String(history.length - i).padStart(2, "0");
-        var who = document.createElement("span");
-        who.className = "who";
-        who.textContent = history[i];
-        li.appendChild(n);
-        li.appendChild(who);
-        historyEl.appendChild(li);
-      }
     }
 
     /* ---------- events ---------- */
@@ -1858,6 +2142,8 @@
 
     card.addEventListener("focusin", activate);
     card.addEventListener("pointerdown", activate);
+    listCard.addEventListener("focusin", activate);
+    listCard.addEventListener("pointerdown", activate);
 
     spinTarget.addEventListener("click", spin);
     spinBtn.addEventListener("click", spin);
@@ -1886,12 +2172,6 @@
       entriesEl.focus();
     });
 
-    clearHistoryBtn.addEventListener("click", function () {
-      history = [];
-      renderHistory();
-      save();
-    });
-
     entriesEl.addEventListener("input", function () {
       claimBoard();
       setHint("");
@@ -1904,14 +2184,17 @@
       removeWheel(api);
     });
 
-    /* The placeholder carries the "Wheel 3" default, so clearing the
-       field just restores it. */
+    /* Placeholder holds the default name, so clearing the field restores it. */
     function displayName() {
       return nameEl.value.trim() || nameEl.placeholder;
     }
 
+    /* On a board, lists are labelled by wheel; alone, by how to fill them. */
     function syncName() {
+      var multi = wheels.length > 1;
       removeWheelBtn.setAttribute("aria-label", "Remove " + displayName());
+      spinTarget.setAttribute("aria-label", multi ? "Spin " + displayName() : "Spin the wheel");
+      listLabel.textContent = multi ? displayName() : "Entries — one per line";
     }
 
     nameEl.addEventListener("input", function () {
@@ -1958,12 +2241,12 @@
 
     var api = {
       el: card,
+      listEl: listCard,
       spin: spin,
       spinFrom: startSpin,
       displayName: displayName,
       resync: function () { syncEntries(true); },
       draw: draw,
-      fit: fit,
       resize: resize,
       rawLines: rawLines,
       setHint: setHint,
@@ -1974,8 +2257,7 @@
       serialize: function () {
         return {
           text: entriesEl.value,
-          name: cleanName(nameEl.value),
-          history: history.slice(0, 40)
+          name: cleanName(nameEl.value)
         };
       },
       setOrdinal: function (i) {
@@ -1987,11 +2269,11 @@
       destroy: function () {
         if (ro) ro.disconnect();
         if (card.parentNode) card.parentNode.removeChild(card);
+        if (listCard.parentNode) listCard.parentNode.removeChild(listCard);
       }
     };
 
     /* The rest waits for api.init(), once addWheel has mounted the card. */
-    renderHistory();
     return api;
   }
 
@@ -1999,9 +2281,15 @@
 
   function setActive(wheel) {
     if (activeWheel === wheel) return;
-    if (activeWheel) activeWheel.el.classList.remove("is-active");
+    if (activeWheel) {
+      activeWheel.el.classList.remove("is-active");
+      activeWheel.listEl.classList.remove("is-active");
+    }
     activeWheel = wheel;
-    if (activeWheel) activeWheel.el.classList.add("is-active");
+    if (activeWheel) {
+      activeWheel.el.classList.add("is-active");
+      activeWheel.listEl.classList.add("is-active");
+    }
   }
 
   function renumber() {
@@ -2014,6 +2302,7 @@
     spinAllBtn.hidden = n < 2;
     panelToggleLabel.textContent = (panelOpen ? "Hide list" : "Show list") + (n > 1 ? "s" : "");
     syncSpinAll();
+    renderLog();
   }
 
   function syncSpinAll() {
@@ -2029,7 +2318,8 @@
     if (wheels.length >= MAX_WHEELS) return null;
     var wheel = createWheel(init);
     wheels.push(wheel);
-    boardEl.appendChild(wheel.el);
+    wheelsEl.appendChild(wheel.el);
+    listsEl.appendChild(wheel.listEl);
     wheel.init();
     renumber();
     resyncAll();
@@ -2040,7 +2330,6 @@
       relayout();
       save();
       wheel.focusEntries();
-      wheel.el.scrollIntoView({ block: "nearest", behavior: reduceMotion.matches ? "auto" : "smooth" });
     }
     return wheel;
   }
@@ -2048,7 +2337,6 @@
   function removeWheel(wheel) {
     var i = wheels.indexOf(wheel);
     if (i < 0) return;
-    /* Never empty: removing the last one leaves a blank wheel to type into. */
     claimBoard();
     wheels.splice(i, 1);
     wheel.destroy();
@@ -2056,7 +2344,8 @@
       activeWheel = null;
       setActive(wheels[Math.min(i, wheels.length - 1)] || null);
     }
-    if (!wheels.length) addWheel({ text: "", name: "", history: [] }, true);
+    /* Never empty: removing the last one leaves a blank wheel to type into. */
+    if (!wheels.length) addWheel({ text: "", name: "" }, true);
     renumber();
     resyncAll();
     syncChrome();
@@ -2079,8 +2368,7 @@
 
   /* ---------- board title ---------- */
 
-  /* The wordmark is the board's name. Unnamed it stays the app title
-     with its tagline; naming the board replaces both. */
+  /* A named board replaces both the app title and the tagline. */
   function renderTitle() {
     titleText.textContent = "";
     if (boardTitle) {
@@ -2137,7 +2425,7 @@
 
   addWheelBtn.addEventListener("click", function () {
     claimBoard();
-    var wheel = addWheel({ text: "", name: "", history: [] });
+    var wheel = addWheel({ text: "", name: "" });
     if (wheel) wheel.setHint("Empty wheel — type some entries.");
   });
 
@@ -2224,7 +2512,7 @@
   window.addEventListener("resize", relayout);
   if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(function () {
-      for (var i = 0; i < wheels.length; i++) { wheels[i].fit(); wheels[i].draw(); }
+      relayout();
     });
   }
 
@@ -2236,6 +2524,7 @@
     if (shadow && typeof shadow.panel === "boolean") panelOpen = shadow.panel;
     storedPanel = panelOpen;
     if (shadow && typeof shadow.title === "string") boardTitle = cleanName(shadow.title);
+    log = readLog(shadow);
 
     var shared = boardFromLink();
     var i, init = [];
@@ -2248,8 +2537,7 @@
       for (i = 0; i < shared.wheels.length; i++) {
         init.push({
           text: shared.wheels[i].list.join("\n"),
-          name: shared.wheels[i].name,
-          history: []
+          name: shared.wheels[i].name
         });
       }
     } else if (shadow && shadow.wheels.length) {
@@ -2257,8 +2545,7 @@
         var w = shadow.wheels[i] || {};
         init.push({
           text: typeof w.text === "string" ? w.text : "",
-          name: typeof w.name === "string" ? w.name : "",
-          history: Array.isArray(w.history) ? w.history : []
+          name: typeof w.name === "string" ? w.name : ""
         });
       }
       /* A saved board of nothing but blanks is the same as no board. */
@@ -2271,7 +2558,7 @@
 
     var sampled = false;
     if (!init.length) {
-      init = [{ text: SAMPLE.join("\n"), name: "", history: [] }];
+      init = [{ text: SAMPLE.join("\n"), name: "" }];
       sampled = true;
     }
 
