@@ -437,6 +437,19 @@
   }
   .verdict.is-won .verdict-name { animation: pop .42s cubic-bezier(.2, 1.5, .4, 1); }
 
+  .verdict-img {
+    display: inline-block;
+    height: 1.6em;
+    width: auto;
+    max-width: 100%;
+    vertical-align: middle;
+    object-fit: contain;
+    border-radius: 2px;
+  }
+  .verdict-img.is-before { margin-right: .3em; }
+  .verdict-img.is-after { margin-left: .3em; }
+  .verdict-img.is-alone { height: 3em; }
+
   @keyframes pop {
     from { transform: scale(.82); opacity: 0; }
     to   { transform: scale(1);   opacity: 1; }
@@ -494,6 +507,7 @@
     text-overflow: ellipsis;
   }
   .board:not(.verdict-beside) .verdict-name.is-idle { font-size: 13.5px; }
+  .board:not(.verdict-beside) .verdict-img { height: 1.15em; }
   .board:not(.verdict-beside) .verdict-actions { grid-area: actions; flex-wrap: nowrap; }
   .board:not(.verdict-beside) .verdict-actions.is-idle { display: none; }
   /* The wheel itself is the spin-again button. */
@@ -741,6 +755,15 @@
     font-variant-numeric: tabular-nums;
   }
   .history .who { overflow-wrap: anywhere; }
+  .history .log-img {
+    height: 1.5em;
+    width: auto;
+    max-width: 4em;
+    margin-right: .4em;
+    vertical-align: middle;
+    object-fit: contain;
+    border-radius: 2px;
+  }
   .history .tag {
     max-width: 14ch;
     font: 400 10px/1.5 var(--mono);
@@ -890,7 +913,7 @@
       <label class="entries-label">Entries — one per line</label>
       <span class="field-meta">
         <b class="count">0 slices</b>
-        <button class="info-btn" type="button" aria-expanded="false" aria-label="How entry weights and triggers work">
+        <button class="info-btn" type="button" aria-expanded="false" aria-label="How entry weights, images and triggers work">
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <circle cx="8" cy="4.2" r="1.15" fill="currentColor"></circle>
             <path d="M8 7.2 V12.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
@@ -902,8 +925,10 @@
         <p><i>e.g.</i> <code>2#Blue</code> to double the weight.</p>
         <p>Decimals can also be used: <code>0.5#Green</code>.</p>
         <p>Zero weight items, like <code>0#Maybe</code>, are omitted from the wheel.</p>
+        <p>Add a picture by putting an image link in square brackets before or after the text: <code>[https://…/cat.png]Cat</code>. A link on its own makes a picture-only slice.</p>
         <p>End an entry with <code>!</code> and a wheel's name to spin that wheel when the entry wins: <code>Coffee!Snacks</code>.</p>
         <p>The name has to match a wheel on the board, so an entry like <code>Ready! Set</code> is left alone.</p>
+        <p>Together, the weight goes first and the trigger last: <code>3#[url]Cat</code>, <code>Cat[url]!Snacks</code>.</p>
       </div>
     </div>
     <textarea class="entries" spellcheck="false" placeholder="One entry per line"></textarea>
@@ -1270,7 +1295,9 @@
       for (i = 0; i < state.log.length && out.length < LOG_MAX; i++) {
         var e = state.log[i];
         if (e && typeof e.result === "string") {
-          out.push({ wheel: typeof e.wheel === "string" ? e.wheel : "", result: e.result });
+          var rec = { wheel: typeof e.wheel === "string" ? e.wheel : "", result: e.result };
+          if (typeof e.image === "string" && IMG_SAFE.test(e.image)) rec.image = e.image;
+          out.push(rec);
         }
       }
       return out;
@@ -1491,8 +1518,10 @@
 
   /* ---------- results log ---------- */
 
-  function addLog(wheel, result) {
-    log.unshift({ wheel: wheel, result: result });
+  function addLog(wheel, result, image) {
+    var rec = { wheel: wheel, result: result };
+    if (image) rec.image = image;
+    log.unshift(rec);
     if (log.length > LOG_MAX) log.length = LOG_MAX;
     renderLog();
   }
@@ -1511,6 +1540,10 @@
       var who = document.createElement("span");
       who.className = "who";
       who.textContent = log[i].result;
+      /* Always leading in the log, so the column of pictures lines up. */
+      if (log[i].image) {
+        who.insertBefore(makeThumb(log[i].image, "log-img", !log[i].result), who.firstChild);
+      }
       li.appendChild(n);
       li.appendChild(who);
       if (tagged && log[i].wheel) {
@@ -1557,6 +1590,65 @@
      every wheel re-read its list. */
   function resyncAll() {
     for (var i = 0; i < wheels.length; i++) wheels[i].resync();
+  }
+
+  /* ---------- images ---------- */
+
+  /* "[https://…/cat.png]Cat" or "Cat[https://…/cat.png]". Only a real
+     link counts, so "[draft] Notes" stays a plain label. */
+  var IMG_URL = "((?:https?:\\/\\/|data:image\\/)[^\\]\\s]+)";
+  var IMG_PRE = new RegExp("^\\[\\s*" + IMG_URL + "\\s*\\]\\s*(.*)$", "i");
+  var IMG_POST = new RegExp("^(.*?)\\s*\\[\\s*" + IMG_URL + "\\s*\\]$", "i");
+  var IMG_SAFE = /^(?:https?:\/\/|data:image\/)/i;
+
+  function splitImage(text) {
+    var m = IMG_PRE.exec(text);
+    if (m) return { label: m[2].trim(), url: m[1], after: false };
+    m = IMG_POST.exec(text);
+    if (m) return { label: m[1].trim(), url: m[2], after: true };
+    return { label: text, url: "", after: false };
+  }
+
+  /* One load per URL for the whole board. Until it arrives, or if it
+     never does, the slice shows just its text. */
+  var imageCache = {};
+  var redrawPending = false;
+
+  function redrawSoon() {
+    if (redrawPending) return;
+    redrawPending = true;
+    requestAnimationFrame(function () {
+      redrawPending = false;
+      for (var i = 0; i < wheels.length; i++) wheels[i].draw();
+    });
+  }
+
+  function imageFor(url) {
+    if (!url) return null;
+    var rec = imageCache[url];
+    if (!rec) {
+      rec = imageCache[url] = { el: new Image(), aspect: 1, ready: false };
+      rec.el.decoding = "async";
+      rec.el.referrerPolicy = "no-referrer";
+      rec.el.onload = function () {
+        var w = rec.el.naturalWidth, h = rec.el.naturalHeight;
+        rec.aspect = w && h ? w / h : 1;
+        rec.ready = true;
+        redrawSoon();
+      };
+      rec.el.src = url;
+    }
+    return rec.ready ? rec : null;
+  }
+
+  function makeThumb(url, cls, alone) {
+    var img = document.createElement("img");
+    img.className = cls;
+    img.alt = alone ? "Image" : "";
+    img.decoding = "async";
+    img.referrerPolicy = "no-referrer";
+    img.src = url;
+    return img;
   }
 
   /* ---------- a wheel ---------- */
@@ -1628,9 +1720,14 @@
         /* A zero weight is a slice nobody can land on — leave it off. */
         if (!(weight > 0)) continue;
         var label = m ? m[2].trim() : s;
+        /* Weight comes off the front, the trigger off the back, and the
+           picture from whatever end of what's left. */
         var trig = splitTrigger(label);
+        var pic = splitImage(trig ? trig.label : label);
         out.push({
-          label: trig ? trig.label : label,
+          label: pic.label,
+          image: pic.url,
+          imageAfter: pic.after,
           weight: weight,
           line: i,
           trigger: trig ? trig.target : ""
@@ -1727,17 +1824,39 @@
       return ctx.measureText(s).width / MEASURE_PX;
     }
 
-    function sizeForLines(lines, seg, outerR, maxW, maxSize) {
-      var uMax = 0;
+    /* A picture beside text stands a little taller than one line; alone
+       it may grow well past the text cap. */
+    var IMG_EM = 1.6;
+    var IMG_GAP_EM = 0.3;
+    var IMG_ONLY_SCALE = 2.6;
+
+    /* The label as one box, in ems of its font: text block and picture
+       side by side, as tall as the taller of the two. */
+    function measureLabel(lines, img) {
+      var uText = 0;
       for (var i = 0; i < lines.length; i++) {
         var u = unitWidth(lines[i]);
-        if (u > uMax) uMax = u;
+        if (u > uText) uText = u;
       }
-      if (uMax <= 0) return 0;
-      var hEm = lines.length === 1 ? 1 : lines.length * LINE_EM;
-      var byHeight = (seg * outerR * SAFETY) / (hEm + seg * uMax);
-      var byWidth = maxW / uMax;
-      return Math.min(byHeight, byWidth, maxSize);
+      var hText = !lines.length ? 0 : lines.length === 1 ? 1 : lines.length * LINE_EM;
+      if (!img) return { w: uText, h: hText, imgW: 0, imgH: 0 };
+      var imgH = lines.length ? Math.max(IMG_EM, hText) : 1;
+      var imgW = imgH * img.aspect;
+      return {
+        w: uText + imgW + (lines.length ? IMG_GAP_EM : 0),
+        h: Math.max(hText, imgH),
+        imgW: imgW,
+        imgH: imgH
+      };
+    }
+
+    function sizeForLines(lines, img, seg, outerR, maxW, maxSize) {
+      var m = measureLabel(lines, img);
+      if (m.w <= 0) return 0;
+      var byHeight = (seg * outerR * SAFETY) / (m.h + seg * m.w);
+      var byWidth = maxW / m.w;
+      var cap = img && !lines.length ? maxSize * IMG_ONLY_SCALE : maxSize;
+      return Math.min(byHeight, byWidth, cap);
     }
 
     function splitInto(words, n) {
@@ -1764,14 +1883,15 @@
       return best;
     }
 
-    function layoutLabel(text, seg, outerR, maxW, maxSize) {
+    function layoutLabel(text, img, seg, outerR, maxW, maxSize) {
+      if (!text) return { lines: [], size: sizeForLines([], img, seg, outerR, maxW, maxSize) };
       var words = text.split(/\s+/).filter(Boolean);
-      var best = { lines: [text], size: sizeForLines([text], seg, outerR, maxW, maxSize) };
+      var best = { lines: [text], size: sizeForLines([text], img, seg, outerR, maxW, maxSize) };
       var maxLines = words.length > 10 ? 2 : 3;
       for (var n = 2; n <= maxLines; n++) {
         var lines = splitInto(words, n);
         if (!lines) break;
-        var s = sizeForLines(lines, seg, outerR, maxW, maxSize);
+        var s = sizeForLines(lines, img, seg, outerR, maxW, maxSize);
         /* Only spend an extra line if it buys a meaningfully bigger face. */
         if (s > best.size * 1.08) best = { lines: lines, size: s };
       }
@@ -1876,18 +1996,35 @@
       ctx.textBaseline = "middle";
       ctx.fillStyle = "#FFFFFF";
       for (var j = 0; j < n; j++) {
-        var lay = layoutLabel(entries[j].label, bounds[j + 1] - bounds[j], outerR, maxW, maxSize);
+        var img = imageFor(entries[j].image);
+        var lay = layoutLabel(entries[j].label, img, bounds[j + 1] - bounds[j], outerR, maxW, maxSize);
         if (!(lay.size > 0.5)) continue;
+        /* Measured while the font is still the measuring size. */
+        var box = measureLabel(lay.lines, img);
+        var s = lay.size;
         ctx.save();
         ctx.rotate((bounds[j] + bounds[j + 1]) / 2 - Math.PI / 2);
-        ctx.font = "600 " + lay.size.toFixed(2) + "px Archivo, sans-serif";
+        ctx.font = "600 " + s.toFixed(2) + "px Archivo, sans-serif";
         ctx.shadowColor = "rgba(0,0,0,.42)";
-        ctx.shadowBlur = Math.max(2, lay.size * 0.16);
-        ctx.shadowOffsetY = Math.max(1, lay.size * 0.05);
-        var lh = lay.size * LINE_EM;
+        ctx.shadowBlur = Math.max(2, s * 0.16);
+        ctx.shadowOffsetY = Math.max(1, s * 0.05);
+        /* The label reads outward from the hub: a leading picture sits
+           nearest the hub, a trailing one at the rim. */
+        var textRight = outerR;
+        if (img) {
+          var iw = box.imgW * s, ih = box.imgH * s, ix;
+          if (entries[j].imageAfter || !lay.lines.length) {
+            ix = outerR - iw;
+            textRight = ix - IMG_GAP_EM * s;
+          } else {
+            ix = outerR - box.w * s;
+          }
+          ctx.drawImage(img.el, ix, -ih / 2, iw, ih);
+        }
+        var lh = s * LINE_EM;
         var y = -((lay.lines.length - 1) / 2) * lh;
         for (var k = 0; k < lay.lines.length; k++) {
-          ctx.fillText(lay.lines[k], outerR, y + k * lh);
+          ctx.fillText(lay.lines[k], textRight, y + k * lh);
         }
         ctx.restore();
       }
@@ -2016,6 +2153,13 @@
       verdictName.className = "verdict-name";
       verdictName.textContent = name;
       verdictName.title = name;
+      if (entry.image) {
+        var pic = makeThumb(entry.image, "verdict-img", !name);
+        if (!name) pic.classList.add("is-alone");
+        else pic.classList.add(entry.imageAfter ? "is-after" : "is-before");
+        if (entry.imageAfter) verdictName.appendChild(pic);
+        else verdictName.insertBefore(pic, verdictName.firstChild);
+      }
       verdictActions.classList.remove("is-idle");
 
       var odds = (share * 100).toFixed(1) + "% chance · " +
@@ -2035,7 +2179,7 @@
       }
       oddsEl.textContent = odds;
 
-      addLog(displayName(), name);
+      addLog(displayName(), name, entry.image);
       save();
     }
 
