@@ -5,6 +5,7 @@ A simple randomized spinner single-page web application.
 ## Features
 
 - Multiple wheels, up to eight
+- Embed images
 - Chain wheels, specific results can trigger other wheels
 - Renamable page and wheels
 - Persists entries to local storage
@@ -14,3 +15,4 @@ A simple randomized spinner single-page web application.
 - Retains recent log of spin results
 - Optionally remove entry after it "wins"
 - Single file, all assets embedded
+- Free to use, no ads, no telemetry, now and forever
