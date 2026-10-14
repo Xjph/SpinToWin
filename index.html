@@ -921,6 +921,7 @@
         <p>End an entry with <code>!</code> and a wheel's name to spin that wheel when the entry wins: <code>Coffee!Snacks</code>.</p>
         <p>The name has to match a wheel on the board, so an entry like <code>Ready! Set</code> is left alone.</p>
         <p>Together, the weight goes first and the trigger last: <code>3#[url]Cat</code>, <code>Cat[url]!Snacks</code>.</p>
+        <p>A line can be prefixed with <code>/</code> to be ignored.</p>
       </div>
     </div>
     <textarea class="entries" spellcheck="false" placeholder="One entry per line"></textarea>
@@ -1675,7 +1676,7 @@
       var out = [];
       for (var i = 0; i < lines.length && out.length < MAX_ENTRIES; i++) {
         var s = lines[i].trim();
-        if (!s) continue;
+        if (!s || s[0] === '/') continue;
         var m = WEIGHT_RE.exec(s);
         var weight = m ? parseFloat(m[1]) : 1;
         /* A zero weight is a slice nobody can land on — leave it off. */
