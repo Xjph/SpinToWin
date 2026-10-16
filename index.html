@@ -790,9 +790,65 @@
     color: var(--ink)
   }
 
+  /* ---------- minimal view ---------- */
+
+  :root.is-minimal,
+  :root.is-minimal body { overflow: hidden; }
+  :root.is-minimal.is-embed,
+  :root.is-minimal.is-embed body { background: transparent; }
+  .is-minimal.is-embed .wheel-disc { filter: none; }
+
+  .is-minimal .masthead { display: none; }
+  .is-minimal #board .side { display: none; }
+  .is-minimal .page {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: 3vmin;
+  }
+  .is-minimal .board {
+    --verdict-h: 0px;
+    --verdict-w: 0px;
+    --stage-gap: 0px;
+  }
+  .is-minimal .wheels { gap: 3vmin; }
+
+  /* Pointer on the right, where a label reads upright. Turning the whole
+     wrap keeps the spin maths untouched; the hub and shadows turn back. */
+  .is-minimal .wheel-wrap { transform: rotate(90deg); }
+  .is-minimal .wheel-disc { filter: drop-shadow(10px 0 22px var(--shadow)); }
+  .is-minimal .pointer { filter: drop-shadow(3px 0 5px var(--shadow-deep)); }
+  .is-minimal .hub { transform: translate(-50%, -50%) rotate(-90deg); }
+  .is-minimal .spin-target:hover + .hub { transform: translate(-50%, -50%) rotate(-90deg) scale(1.06); }
+  .is-minimal .spin-target[disabled] + .hub { transform: translate(-50%, -50%) rotate(-90deg) scale(.95); }
+  .is-minimal .board.is-multi .wheel-card {
+    border: 0;
+    padding: 0;
+    box-shadow: none;
+  }
+  .is-minimal .board.is-multi .card-head,
+  .is-minimal .board .stage .verdict { display: none; }
+
+  .min-bar { display: none; }
+  .is-minimal .min-bar {
+    position: fixed;
+    top: 8px;
+    right: 8px;
+    z-index: 10;
+    display: flex;
+    gap: 8px;
+    opacity: 0;
+    transition: opacity .2s ease;
+  }
+  .is-minimal .min-bar:hover,
+  .is-minimal .min-bar:focus-within,
+  .is-minimal .min-bar.is-peek { opacity: 1; }
+
   @media (prefers-reduced-motion: reduce) {
     .verdict.is-won .verdict-name { animation: none; }
-    .hub, button.act, .wheel-card { transition: none; }
+    .hub, button.act, .wheel-card, .min-bar { transition: none; }
   }
 </style>
 
@@ -841,6 +897,12 @@
         </svg>
         <span id="panelToggleLabel">Hide list</span>
       </button>
+      <button class="header-button icon-only" id="minimalBtn" type="button" aria-label="Minimal view"
+              title="Minimal view: just the wheels, for embedding">
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M2.5 6 V2.5 H6 M10 2.5 H13.5 V6 M13.5 10 V13.5 H10 M6 13.5 H2.5 V10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+        </svg>
+      </button>
     </div>
   </header>
 
@@ -858,6 +920,15 @@
       <div class="lists" id="lists"></div>
     </aside>
   </div>
+</div>
+
+<div class="min-bar" id="minBar">
+  <button class="header-button" id="embedCopy" type="button"><span id="embedLabel">Copy embed link</span></button>
+  <button class="header-button icon-only" id="minExit" type="button" aria-label="Exit minimal view" title="Exit minimal view (Esc)">
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M4 4 L12 12 M12 4 L4 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+    </svg>
+  </button>
 </div>
 
 <template id="wheelTpl">
@@ -974,6 +1045,11 @@
   var titleText = document.getElementById("titleText");
   var titleInput = document.getElementById("titleInput");
   var taglineEl = document.getElementById("tagline");
+  var minimalBtn = document.getElementById("minimalBtn");
+  var minBar = document.getElementById("minBar");
+  var embedCopy = document.getElementById("embedCopy");
+  var embedLabel = document.getElementById("embedLabel");
+  var minExit = document.getElementById("minExit");
 
   var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -1398,9 +1474,11 @@
   function chromeHeight() {
     var pg = getComputedStyle(pageEl);
     var root = getComputedStyle(document.documentElement);
-    return parseFloat(root.paddingTop) + parseFloat(root.paddingBottom) +
-      parseFloat(pg.paddingTop) + parseFloat(pg.paddingBottom) +
-      mastheadEl.offsetHeight + parseFloat(getComputedStyle(mastheadEl).marginBottom) + 6;
+    var pad = parseFloat(root.paddingTop) + parseFloat(root.paddingBottom) +
+      parseFloat(pg.paddingTop) + parseFloat(pg.paddingBottom);
+    /* Hidden, the masthead still reports its margin. */
+    if (minimal) return pad;
+    return pad + mastheadEl.offsetHeight + parseFloat(getComputedStyle(mastheadEl).marginBottom) + 6;
   }
 
   function px(style, props) {
@@ -1450,7 +1528,7 @@
     if (!n) return;
     boardEl.classList.toggle("is-multi", n > 1);
     /* One wheel keeps the page's narrow measure; a board wants the width. */
-    pageEl.style.maxWidth = n > 1 ? "2400px" : "";
+    pageEl.style.maxWidth = minimal ? "none" : n > 1 ? "2400px" : "";
 
     var f = tileFrame();
     var boardW = boardEl.clientWidth || window.innerWidth;
@@ -1460,12 +1538,13 @@
     /* Wheels come first: the side column sits beside them only if it costs under 20% of their size. */
     var under = bestTiling(n, boardW, H, f);
     var beside = bestTiling(n, boardW - sideW, H, f);
-    var sideBeside = boardW >= 860 && beside.d >= under.d * 0.8;
+    var sideBeside = !minimal && boardW >= 860 && beside.d >= under.d * 0.8;
     var t = sideBeside ? beside : under;
     var W = sideBeside ? boardW - sideW : boardW;
 
-    /* Below MIN_WHEEL labels get unreadable, so scroll instead of shrinking. */
-    if (t.d < MIN_WHEEL) {
+    /* Below MIN_WHEEL labels get unreadable, so scroll instead of shrinking.
+       Minimal view can't scroll: an embed's frame is all the room there is. */
+    if (t.d < MIN_WHEEL && !minimal) {
       var d0 = Math.min(MIN_WHEEL, W - f.x);
       var c = Math.max(1, Math.min(n, Math.floor((W + f.gap) / (d0 + f.x + f.gap))));
       t = { d: Math.max(d0, (W - (c - 1) * f.gap) / c - f.x), cols: c, beside: false };
@@ -2445,13 +2524,6 @@
     save();
   });
 
-  var copyTimer = 0;
-  function flashCopy(msg) {
-    copyLabel.textContent = msg;
-    clearTimeout(copyTimer);
-    copyTimer = setTimeout(function () { copyLabel.textContent = "Copy link"; }, 1800);
-  }
-
   function copyFallback(text) {
     var ta = document.createElement("textarea");
     ta.value = text;
@@ -2465,17 +2537,84 @@
     return ok;
   }
 
-  copyBtn.addEventListener("click", function () {
+  function embedUrl() {
     var url = shareUrl();
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(url).then(
-        function () { flashCopy("Link copied"); },
-        function () { flashCopy(copyFallback(url) ? "Link copied" : "Copy failed"); }
-      );
-    } else {
-      flashCopy(copyFallback(url) ? "Link copied" : "Copy failed");
+    return url + (url.indexOf("?") < 0 ? "?" : "&") + "view=min";
+  }
+
+  /* Returns a refresh, for labels that change while idle. */
+  function copyButton(btn, label, makeUrl, idleText) {
+    var timer = 0;
+    function idle() {
+      timer = 0;
+      label.textContent = idleText();
     }
-  });
+    function flash(msg) {
+      label.textContent = msg;
+      clearTimeout(timer);
+      timer = setTimeout(idle, 1800);
+    }
+    btn.addEventListener("click", function (e) {
+      var url = makeUrl(e);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(
+          function () { flash("Link copied"); },
+          function () { flash(copyFallback(url) ? "Link copied" : "Copy failed"); }
+        );
+      } else {
+        flash(copyFallback(url) ? "Link copied" : "Copy failed");
+      }
+    });
+    return function () { if (!timer) idle(); };
+  }
+
+  /* Shift turns Copy link into Copy embed, without a trip into minimal view. */
+  var shiftHeld = false;
+  var refreshCopy = copyButton(copyBtn, copyLabel,
+    function (e) { return e.shiftKey ? embedUrl() : shareUrl(); },
+    function () { return shiftHeld ? "Copy embed" : "Copy link"; });
+  copyButton(embedCopy, embedLabel, embedUrl, function () { return "Copy embed link"; });
+
+  function setShift(on) {
+    if (shiftHeld === on) return;
+    shiftHeld = on;
+    refreshCopy();
+  }
+  document.addEventListener("keydown", function (e) { if (e.key === "Shift") setShift(true); });
+  document.addEventListener("keyup", function (e) { if (e.key === "Shift") setShift(false); });
+  /* Shift let go in another window never sends its keyup here. */
+  window.addEventListener("blur", function () { setShift(false); });
+  copyBtn.addEventListener("pointerenter", function (e) { setShift(e.shiftKey); });
+
+  /* ---------- minimal view ---------- */
+
+  var minimal = false;
+  var peekTimer = 0;
+
+  function setMinimal(on) {
+    if (minimal === on) return;
+    minimal = on;
+    document.documentElement.classList.toggle("is-minimal", on);
+    clearTimeout(peekTimer);
+    minBar.classList.remove("is-peek");
+    closeHelps();
+    relayout();
+  }
+
+  function enterMinimal() {
+    setMinimal(true);
+    /* A glimpse of the way out; after that it waits for a hover. */
+    minBar.classList.add("is-peek");
+    peekTimer = setTimeout(function () { minBar.classList.remove("is-peek"); }, 2500);
+  }
+
+  function exitMinimal() {
+    setMinimal(false);
+    minimalBtn.focus();
+  }
+
+  minimalBtn.addEventListener("click", enterMinimal);
+  minExit.addEventListener("click", exitMinimal);
 
   /* ---------- global keys and popovers ---------- */
 
@@ -2496,6 +2635,10 @@
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape" && document.querySelector(".help-pop:not([hidden])")) {
       closeHelps();
+      return;
+    }
+    if (e.key === "Escape" && minimal) {
+      exitMinimal();
       return;
     }
     if (e.code === "Space") {
@@ -2579,6 +2722,14 @@
 
     setPanel(panelOpen);
     syncChrome();
+
+    /* No peek: an embed should show the wheels and nothing else. */
+    var view = null;
+    try { view = new URLSearchParams(queryString()).get("view"); } catch (e) { /* no view */ }
+    if (view === "min") {
+      document.documentElement.classList.add("is-embed");
+      setMinimal(true);
+    }
     relayout();
   })();
 })();
