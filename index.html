@@ -139,15 +139,6 @@
   .wordmark-input[hidden],
   .wordmark-btn[hidden] { display: none; }
 
-  .tagline[hidden] { display: none; }
-
-  .tagline {
-    margin: 0;
-    color: var(--ink-soft);
-    font-size: .95rem;
-    max-width: 44ch;
-  }
-
   .links {
     margin-left: auto;
     font: 400 10px/1 var(--mono)
@@ -871,7 +862,6 @@
       <input class="wordmark-input" id="titleInput" type="text" maxlength="40"
              spellcheck="false" autocomplete="off" aria-label="Board name" hidden>
     </h1>
-    <p class="tagline" id="tagline">Type a list, give the wheel a shove, let the flapper decide.</p>
     <div class="links">
         <a class="external-link" href="https://github.com/Xjph/SpinToWin">github</a> - <a class="external-link" href="https://ko-fi.com/vithigar">ko-fi</a>
     </div>
@@ -1044,7 +1034,6 @@
   var titleBtn = document.getElementById("titleBtn");
   var titleText = document.getElementById("titleText");
   var titleInput = document.getElementById("titleInput");
-  var taglineEl = document.getElementById("tagline");
   var minimalBtn = document.getElementById("minimalBtn");
   var minBar = document.getElementById("minBar");
   var embedCopy = document.getElementById("embedCopy");
@@ -2448,7 +2437,6 @@
 
   /* ---------- board title ---------- */
 
-  /* A named board replaces both the app title and the tagline. */
   function renderTitle() {
     titleText.textContent = "";
     if (boardTitle) {
@@ -2460,7 +2448,6 @@
       titleText.appendChild(em);
     }
     document.title = boardTitle || "Spin to Win";
-    taglineEl.hidden = !!boardTitle;
   }
 
   var titleEditing = false;
@@ -2484,7 +2471,6 @@
         boardTitle = next;
         claimBoard();
         renderTitle();
-        /* The tagline's height was part of the wheels' budget. */
         relayout();
         save();
       }
