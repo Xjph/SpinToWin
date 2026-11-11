@@ -550,6 +550,13 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  
+  .list-card.is-concealable .entries-label::after {
+    content: " · hidden until spun";
+    opacity: .7;
+  }
+
+  .wheel-card.is-concealed { display: none; }
 
   .field-head {
     position: relative;
@@ -981,6 +988,7 @@
         <p>Zero weight items, like <code>0#Maybe</code>, are omitted from the wheel.</p>
         <p>Add a picture by putting an image link in square brackets before or after the text: <code>[https://…/cat.png]Cat</code>. A link on its own makes a picture-only slice.</p>
         <p>End an entry with <code>!</code> and a wheel's name to spin that wheel when the entry wins: <code>Coffee!Snacks</code>.</p>
+        <p>Use <code>@</code> instead, <code>Coffee@Snacks</code>, and that wheel stays hidden except while it spins. It will remain visible until any mouse or keyboard input, or five seconds, whichever is longer. Add a second <code>@</code> to set how long the result shows before the next wheel spins, in milliseconds: <code>Coffee@Snacks@10000</code>, or <code>@0</code> to wait for the next key press or mouse move.</p>
         <p>The name has to match a wheel on the board, so an entry like <code>Ready! Set</code> is left alone.</p>
         <p>Together, the weight goes first and the trigger last: <code>3#[url]Cat</code>, <code>Cat[url]!Snacks</code>.</p>
         <p>A line can be prefixed with <code>/</code> to be ignored.</p>
@@ -1482,8 +1490,7 @@
   }
 
   /* Tile space the wheel can't use: frame, title bar and verdict. */
-  function tileFrame() {
-    var el = wheels[0].el;
+  function tileFrame(el) {
     var cs = getComputedStyle(el);
     var head = el.querySelector(".card-head");
     var headH = head.offsetHeight
@@ -1514,13 +1521,19 @@
   }
 
   function layoutBoard() {
-    var n = wheels.length;
+    /* Concealed wheels give up their space, but don't change the board's look. */
+    var shown = [];
+    for (var i = 0; i < wheels.length; i++) {
+      if (!isConcealed(wheels[i])) shown.push(wheels[i]);
+    }
+    var n = shown.length;
     if (!n) return;
-    boardEl.classList.toggle("is-multi", n > 1);
+    var multi = wheels.length > 1;
+    boardEl.classList.toggle("is-multi", multi);
     /* One wheel keeps the page's narrow measure; a board wants the width. */
-    pageEl.style.maxWidth = minimal ? "none" : n > 1 ? "2400px" : "";
+    pageEl.style.maxWidth = minimal ? "none" : multi ? "2400px" : "";
 
-    var f = tileFrame();
+    var f = tileFrame(shown[0].el);
     var boardW = boardEl.clientWidth || window.innerWidth;
     var H = window.innerHeight - chromeHeight();
     var sideW = cssVar(boardEl, "--side-w") + (parseFloat(getComputedStyle(boardEl).columnGap) || 0);
@@ -1612,19 +1625,100 @@
     return null;
   }
 
-  /* Target must name a real wheel, so "Ready! Set" stays plain and nothing needs escaping. */
+  /* Target must name a real wheel, so "Ready! Set" and "me@home" stay plain and nothing
+     needs escaping. "@" rather than "!" keeps the target hidden until it spins. */
   function splitTrigger(label) {
-    var at = label.lastIndexOf("!");
-    if (at < 1) return null;
-    var target = label.slice(at + 1).trim();
-    var head = label.slice(0, at).trim();
-    if (!target || !head || !wheelByName(target)) return null;
-    return { label: head, target: target };
+    var m = DELAY_RE.exec(label);
+    if (m) {
+      var inner = scanTrigger(m[1]);
+      if (inner && inner.conceal) { inner.delay = parseInt(m[2], 10); return inner; }
+    }
+    return scanTrigger(label);
+  }
+
+  /* "Result@Wheel@10000": ms to show the result before Wheel spins, 0 meaning until the next input. */
+  var DELAY_RE = /^(.+)@\s*(\d+)$/;
+
+  function scanTrigger(label) {
+    for (var at = label.length - 1; at > 0; at--) {
+      var c = label.charAt(at);
+      if (c !== "!" && c !== "@") continue;
+      var target = label.slice(at + 1).trim();
+      var head = label.slice(0, at).trim();
+      if (target && head && wheelByName(target)) {
+        return { label: head, target: target, conceal: c === "@", delay: null };
+      }
+    }
+    return null;
   }
 
   /* Wheel names decide which triggers resolve, so any change re-reads every list. */
   function resyncAll() {
     for (var i = 0; i < wheels.length; i++) wheels[i].resync();
+  }
+
+  /* ---------- concealed wheels ---------- */
+
+  /* Least time to read the winner before a concealed wheel can hide again. */
+  var LINGER_MS = 5000;
+  var INPUT_EVENTS = ["keydown", "pointerdown", "pointermove", "wheel"];
+
+  function isConcealed(wheel) {
+    return wheel.el.classList.contains("is-concealed");
+  }
+
+  function syncConcealed() {
+    var n = wheels.length, targets = [], tree = [], i, j;
+    /* Wheels linked by "@" form one tree, which shows only its newest step. */
+    function find(k) {
+      while (tree[k] !== k) { tree[k] = tree[tree[k]]; k = tree[k]; }
+      return k;
+    }
+    for (i = 0; i < n; i++) tree.push(i);
+    for (i = 0; i < n; i++) {
+      var names = wheels[i].hiddenTargets();
+      for (j = 0; j < names.length; j++) {
+        var w = wheelByName(names[j]);
+        if (!w) continue;
+        if (targets.indexOf(w) < 0) targets.push(w);
+        tree[find(i)] = find(wheels.indexOf(w));
+      }
+    }
+    /* Hiding every wheel would leave nothing to spin. */
+    if (targets.length >= n) targets = [];
+
+    var spins = {}, lingers = {}, t;
+    for (i = 0; i < n; i++) if (wheels[i].isSpinning()) spins[find(i)] = true;
+    for (i = 0; i < n; i++) {
+      t = find(i);
+      /* Otherwise the previous step reappears when this one lands. */
+      if (spins[t] && !wheels[i].isSpinning()) wheels[i].dropLinger();
+      if (wheels[i].lingering()) lingers[t] = true;
+    }
+
+    var changed = false, firstShown = null;
+    for (i = 0; i < n; i++) {
+      var wheel = wheels[i];
+      var target = targets.indexOf(wheel) >= 0;
+      t = find(i);
+      var hide = spins[t] ? !wheel.isSpinning()
+        : lingers[t] ? !wheel.lingering()
+        : target;
+      if (isConcealed(wheel) !== hide) {
+        wheel.el.classList.toggle("is-concealed", hide);
+        changed = true;
+      }
+      wheel.listEl.classList.toggle("is-concealable", target);
+      if (!hide && !firstShown) firstShown = wheel;
+    }
+
+    /* Otherwise Space would keep spinning a wheel nobody can see. */
+    if (activeWheel && isConcealed(activeWheel)) {
+      var back = activeWheel.origin();
+      if (!back || wheels.indexOf(back) < 0 || isConcealed(back)) back = firstShown;
+      setActive(back);
+    }
+    if (changed) relayout();
   }
 
   /* ---------- images ---------- */
@@ -1732,6 +1826,11 @@
     var totalWeight = 0;
     var bounds = [0];
     var idleOdds = "";
+    var lingering = false;
+    var lingerTimer = 0;
+    var lingerThen = null;
+    /* The wheel whose spin set this one going, to hand the focus back to. */
+    var origin = null;
 
     entriesEl.value = (init && typeof init.text === "string") ? init.text : "";
     nameEl.value = (init && typeof init.name === "string") ? cleanName(init.name) : "";
@@ -1760,7 +1859,9 @@
           imageAfter: pic.after,
           weight: weight,
           line: i,
-          trigger: trig ? trig.target : ""
+          trigger: trig ? trig.target : "",
+          conceal: trig ? trig.conceal : false,
+          delay: trig ? trig.delay : null
         });
       }
       return out;
@@ -1828,6 +1929,7 @@
       spinTarget.disabled = spinning || n < 1;
       syncSpinAll();
       if (redraw !== false) draw();
+      syncConcealed();
       save();
     }
 
@@ -2093,6 +2195,7 @@
       entriesEl.readOnly = on;
       spinBtn.textContent = on ? "Spinning…" : "Spin the wheel";
       syncSpinAll();
+      syncConcealed();
     }
 
     /* Each wheel joins a chain once, so "A!B" and "B!A" can't loop. */
@@ -2101,6 +2204,10 @@
     function startSpin(chain) {
       if (spinning || chain.indexOf(api) >= 0) return;
       var trail = chain.concat([api]);
+      origin = trail[0];
+      /* A respin replaces the last result, so its pending trigger goes too. */
+      stopLinger();
+      lingering = false;
       syncEntries(false);
       var n = entries.length;
       if (!n) { resetVerdict(); draw(); return; }
@@ -2162,14 +2269,66 @@
       requestAnimationFrame(frame);
     }
 
+    function stopLinger() {
+      clearTimeout(lingerTimer);
+      for (var i = 0; i < INPUT_EVENTS.length; i++) {
+        window.removeEventListener(INPUT_EVENTS[i], endLinger, true);
+      }
+    }
+
+    function endLinger() {
+      stopLinger();
+      var then = lingerThen;
+      lingerThen = null;
+      /* Next wheel spins before this one hides, so its tree never shows the idle board between. */
+      if (then) then();
+      lingering = false;
+      syncConcealed();
+    }
+
+    /* With onInput, ms is a minimum: the first input after it ends the wait. */
+    function startLinger(ms, onInput, then) {
+      stopLinger();
+      lingering = true;
+      lingerThen = then || null;
+      if (!onInput) { lingerTimer = setTimeout(endLinger, ms); return; }
+      if (ms > 0) { lingerTimer = setTimeout(listenForInput, ms); return; }
+      listenForInput();
+    }
+
+    /* Capture, so a handler that stops propagation can't hold the wait. */
+    function listenForInput() {
+      for (var i = 0; i < INPUT_EVENTS.length; i++) {
+        window.addEventListener(INPUT_EVENTS[i], endLinger, true);
+      }
+    }
+
     function finish(idx, trail) {
+      var entry = entries[idx];
+      var next = entry.trigger ? wheelByName(entry.trigger) : null;
+      var chained = next && trail.indexOf(next) < 0;
       /* Chime first, while this wheel still counts toward the volume scaling. */
       chime();
+      /* Before setSpinning, or a concealed wheel vanishes as it lands. */
+      if (chained) {
+        var target = entry.trigger;
+        var timed = entry.delay !== null;
+        startLinger(timed ? entry.delay : (reduceMotion.matches ? 0 : 600), entry.delay === 0, function () {
+          /* Re-resolve, as the board may have changed while the result showed. */
+          var w = wheelByName(target);
+          if (!w || trail.indexOf(w) >= 0) return;
+          /* Spin first: a concealed wheel can't hold the focus until it shows. */
+          w.spinFrom(trail);
+          if (w.isSpinning()) setActive(w);
+        });
+      } else {
+        /* Stays until someone stirs, but a hand already on the mouse can't wave it off. */
+        startLinger(LINGER_MS, true);
+      }
       setSpinning(false);
       winnerIdx = idx;
       draw();
 
-      var entry = entries[idx];
       var name = entry.label;
       var share = entry.weight / totalWeight;
       verdictEl.classList.add("is-won");
@@ -2188,18 +2347,7 @@
 
       var odds = (share * 100).toFixed(1) + "% chance · " +
         (share * 360).toFixed(1) + "° slice";
-      var next = entry.trigger ? wheelByName(entry.trigger) : null;
-      if (next && trail.indexOf(next) < 0) {
-        odds += " · spins " + next.displayName();
-        /* Pause to read the winner; re-resolve, as the board may change meanwhile. */
-        var target = entry.trigger;
-        setTimeout(function () {
-          var w = wheelByName(target);
-          if (!w || trail.indexOf(w) >= 0) return;
-          setActive(w);
-          w.spinFrom(trail);
-        }, reduceMotion.matches ? 0 : 600);
-      }
+      if (chained) odds += " · spins " + next.displayName();
       oddsEl.textContent = odds;
 
       addLog(displayName(), name, entry.image);
@@ -2321,6 +2469,17 @@
       rawLines: rawLines,
       setHint: setHint,
       isSpinning: function () { return spinning; },
+      lingering: function () { return lingering; },
+      /* Hides only; a pending trigger still fires. */
+      dropLinger: function () { lingering = false; },
+      origin: function () { return origin; },
+      hiddenTargets: function () {
+        var out = [];
+        for (var i = 0; i < entries.length; i++) {
+          if (entries[i].conceal) out.push(entries[i].trigger);
+        }
+        return out;
+      },
       canSpin: function () { return !spinning && entries.length > 0; },
       init: function () { syncEntries(false); resetVerdict(); syncName(); },
       getName: function () { return cleanName(nameEl.value); },
@@ -2496,8 +2655,10 @@
     if (wheel) wheel.setHint("Empty wheel — type some entries.");
   });
 
+  /* Concealed wheels wait for their trigger. Pick first, as each spin hides its tree mates. */
   spinAllBtn.addEventListener("click", function () {
-    for (var i = 0; i < wheels.length; i++) wheels[i].spin();
+    var shown = wheels.filter(function (w) { return !isConcealed(w); });
+    for (var i = 0; i < shown.length; i++) shown[i].spin();
   });
 
   panelToggle.addEventListener("click", function () {
@@ -2697,6 +2858,7 @@
     renderTitle();
     for (i = 0; i < init.length; i++) addWheel(init[i], true);
     setActive(wheels[0]);
+    syncConcealed();
 
     if (boardFromUrl) {
       var msg = wheels.length > 1
